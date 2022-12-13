@@ -1,0 +1,3272 @@
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.secureMessages = absa.apps.secureMessages || {};
+
+absa.apps.secureMessages.onTableReload = function(oBtn){
+	if (oBtn) {
+		var oTbl = bb.selector.queryAncestor(oBtn,'.ap-secureMessages-table');
+		if (oTbl){
+			phe.table.reload(oTbl);
+		}
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewReceivedSecureMessageContent = absa.apps.viewReceivedSecureMessageContent || {};
+
+absa.apps.viewReceivedSecureMessageContent.toggleReplyContent = function (oButton,isCancelButton) {
+	var oViewReceivedSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewReceivedSecureMessageContent');
+	var oModal = bb.selector.queryAncestor(oButton,'.ui-modal');
+	var oReplyRows = bb.selector.query(oViewReceivedSecureMessageContent,'.ap-viewReceivedSecureMessageContent-replyRows');
+	var oAttachmentRow = bb.selector.query(oViewReceivedSecureMessageContent,'.ap-viewReceivedSecureMessageContent-attachmentRow');
+	var oButtonsContainer = bb.selector.query(oViewReceivedSecureMessageContent,'.ap-secureMessages-buttonsContainer');
+	var sModalTitle = phe.modal.getAttribute(oModal, 'title');
+	if (isCancelButton) {
+		oAttachmentRow.style.display = '';
+		oButtonsContainer.style.display = '';
+		oReplyRows.style.display = 'none';
+		phe.modal.setAttribute(oModal, 'title', sModalTitle.substring(3, sModalTitle.length));
+	} else {
+		oButtonsContainer.style.display	= 'none';
+		oAttachmentRow.style.display	= 'none';
+		oReplyRows.style.display		= '';
+		phe.modal.setAttribute(oModal, 'title', 'RE: ' + sModalTitle);
+	}
+};
+
+absa.apps.viewReceivedSecureMessageContent.onCancelReplyButtonClick = function(oButton,isCancelButton){
+	absa.apps.viewReceivedSecureMessageContent.toggleReplyContent(oButton,isCancelButton);
+};
+
+absa.apps.viewReceivedSecureMessageContent.onReplyButtonClick = function(oButton){
+	absa.apps.viewReceivedSecureMessageContent.toggleReplyContent(oButton);
+};
+
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewSecureMessages = absa.apps.viewSecureMessages || {};
+
+absa.apps.viewSecureMessages.isSecureMessageTabClicked = false;
+
+absa.apps.viewSecureMessages.onlazyLoadTabBody = function(oTabBody, isSecureMessageTabClicked){
+	// 1. Set the unread message contents from dashboard.xsl
+	var oDashBoard 		= bb.selector.queryAncestor(oTabBody,'.p-gadget');
+	var oMessageNumber 	= bb.selector.query(oDashBoard, '.ap-dashBoard-messageNumber');
+	var sMessageNumber  = oMessageNumber.innerHTML;
+	if (sMessageNumber != null) {
+		sMessageNumber = sMessageNumber.replace('(','');
+		sMessageNumber = sMessageNumber.replace(')','');	
+	}
+
+	// contents from messages.xsl
+	var oTabBoxVertical = bb.selector.query(oDashBoard, '.ap-secureMessages-tabBoxVertical');
+
+	//add class to identify selected secure messaging tabBoxVertical within the entire portal
+	var oPageBody = document.getElementById("ap-page-body");
+	var aTabBoxVertical = bb.selector.queryAll(oPageBody, '.ap-secureMessages-tabBoxVertical');
+	for(var j=0; j < aTabBoxVertical.length; j++){
+		bb.html.removeClass(aTabBoxVertical[j], 'ap-secureMessages-tabBoxVertical-selected');
+	}
+	bb.html.addClass(oTabBoxVertical, 'ap-secureMessages-tabBoxVertical-selected');
+
+	// 2. Attach tabbox "change" handler get other tabBoxHeads
+	var aHeads = bb.selector.queryAll(oTabBoxVertical, '.ap-secureMessages-tabBoxVerticalHead');
+	var oFirstHead = aHeads[0];
+
+	// add an event listener to other tabs to hide history when they are clicked
+	for (var i = 0; i < aHeads.length; i++) {
+		bb.html.addEventListener(aHeads[i], 'click', function(){
+			var oHead	= absa.apps.viewSecureMessages.getHistoryTabBox(oFirstHead);
+			phe.tabBoxVerticalHead.hide(oHead);
+		});
+	}
+
+	//update secure messaging campaign viewed status call
+	if (!absa.apps.viewSecureMessages.isSecureMessageTabClicked) {
+		var sUrl = 'proxy?pipe=genericWebservice&ws=SecureMessageWebService&action=updateCampaignViewedStatus&status=Y';
+		absa.io.makeRequest(sUrl, function(oResponse){});
+		absa.apps.viewSecureMessages.isSecureMessageTabClicked = true;
+	}
+	
+	//set the proxyurl for my financial management tools
+	var oDashBoardTab = bb.selector.query(oDashBoard, '.ap-accountDashboard-nettWorth') || bb.selector.query(oDashBoard, '.ap-saveinvestDashboard-tabBody');
+	
+	//check if we are in the account gadget and networth graph exists
+	if (oDashBoardTab) {
+		var sProxyUrl = phe.common.getAttribute(oDashBoardTab, 'proxyurl');		
+		//check if the proxyurl has already been set
+		if (sProxyUrl.indexOf('messagesOpenedFromThisSession') == -1) {
+			sProxyUrl += '&messagesOpenedFromThisSession=true';
+			
+			//set proxyurl for mytools 
+			phe.common.setAttribute(oDashBoardTab, 'proxyurl', sProxyUrl);
+		}
+	}
+	gadgets.pubsub.publish("update-secureMessagesUnreadCount", sMessageNumber);
+};
+
+absa.apps.viewSecureMessages.getHistoryTabBox = function(oButton) {
+	// get view history tab head
+	var oTabBoxVertical = bb.selector.queryAncestor(oButton, '.ap-secureMessages-tabBoxVertical');
+	var oHead = bb.selector.query(oTabBoxVertical, '.ap-viewSecureMessageHistory-tabBoxVerticalHead');
+	return oHead;
+};
+
+absa.apps.viewSecureMessages.onViewHistoryButtonClick = function(oButton,sMessageType,sMessageID) {
+	// Show History tab and navigate tabBox there
+	var oTabBox = bb.selector.queryAncestor(oButton,'.ap-secureMessages-tabBoxVertical');
+	var oHead = absa.apps.viewSecureMessages.getHistoryTabBox(oButton);
+	phe.tabBoxVerticalHead.show(oHead);
+
+	// get history taBoxBody and it's proxyurl
+	var oTabBoxBody = bb.selector.query(oTabBox, '.ap-secureMessages-tabBoxVerticalBodyMessageHistory');
+	var sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/messageHistory&mode=' + sMessageType + '&messageID=' + sMessageID;
+
+	// reset proxyurl and load history tab
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxBody, 'proxyurl', sProxyUrl);
+	phe.tabBoxVertical.selectTabByIndex(oTabBox, 4);
+};
+
+absa.apps.viewSecureMessages.displayMessageContent = function(sMessageId, sProxyUrl, sHeading, bMessageUnread){
+	absa.modal.loadModal(sProxyUrl , sHeading, function() {
+		var oModal = arguments[0];
+		var oHiddenField = bb.selector.query(oModal, '.ap-secureMessages-hiddenMessageText');
+		if (oHiddenField) {
+			var oMessageTextDiv			= bb.selector.query(oModal, '.ap-secureMessages-inboxMessageTextScrollContainer');
+			
+			//taking care of line breaks
+			var sMessageText 			= phe.hiddenField.getValue(oHiddenField).replace(/\n/g, '<br/>');
+			oMessageTextDiv.innerHTML 	= sMessageText;
+		}
+	});
+	
+	//update message read status
+	if (bMessageUnread) {
+		var sUrl = 'proxy?pipe=genericWebservice&ws=SecureMessageWebService&action=updateReadStatus&readStatus=2&messageID=' + sMessageId;
+
+		absa.io.makeRequest(sUrl, function(oResponse) {
+			if (!oResponse.errors.length) {
+				var oXHTML = bb.html.createElementFromString(oResponse.text);
+				
+				if (oXHTML.innerHTML == "true") {
+					//reload table
+					gadgets.pubsub.publish("update-secureMessagesMessageUnreadStatus", sMessageId);
+				}
+			}
+		});
+	}
+};
+
+absa.apps.viewSecureMessages.onViewMessageButtonClick = function(oButton, bMessageUnread) {
+	var oTableBodyCell = bb.selector.queryAncestor(oButton, '.ap-viewSecureMessages-tableBodyCell');
+
+	//load modal
+	var oHeading 		= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-heading');
+	var oProxyUrlView 	= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-proxyUrlView');
+	var oMessageId 		= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-messageId');
+	var sMessageId 		= phe.hiddenField.getValue(oMessageId);
+	
+	absa.apps.viewSecureMessages.displayMessageContent(sMessageId, phe.hiddenField.getValue(oProxyUrlView), phe.hiddenField.getValue(oHeading), bMessageUnread);	
+};
+
+absa.apps.viewSecureMessages.onTableLoad = function(oTable){
+	// get message number from table body
+	var oTableBody = bb.selector.query(oTable, '.ap-viewSecureMessages-inboxTableBody');
+	var sMessageNumber = phe.tableBody.getAttribute(oTableBody, 'data-unreadMessages');
+	
+	gadgets.pubsub.publish("update-secureMessagesUnreadCount", sMessageNumber); 
+};
+
+absa.apps.viewSecureMessages.onMessageSubjectDivClick = function(oDiv, bMessageUnread){
+	var oTableBodyRow 	= bb.selector.queryAncestor(oDiv, '.ap-viewSecureMessages-tableRow');
+	var oTableBodyCell	= bb.selector.query(oTableBodyRow, '.ap-viewSecureMessages-actionButtonContainer');
+	var oHeading 		= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-heading');
+	var oProxyUrlView 	= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-proxyUrlView');
+	var oMessageId 		= bb.selector.query(oTableBodyCell, '.ap-viewSecureMessages-messageId');
+	var sMessageId 		= phe.hiddenField.getValue(oMessageId);
+	
+	absa.apps.viewSecureMessages.displayMessageContent(sMessageId, phe.hiddenField.getValue(oProxyUrlView), phe.hiddenField.getValue(oHeading), bMessageUnread);		
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.composeSecureMessage = absa.apps.composeSecureMessage || {};
+
+absa.apps.composeSecureMessage.onPurposeOfEnquirySelect = function(oSelect,clienttype,sbu){
+	var oUseCaseContainter = bb.selector.queryAncestor(oSelect,'.ap-composeSecureMessages');
+	var oFormBody = bb.selector.query(oUseCaseContainter,'.ap-composeSecureMessages-formBody');
+	var oForm = bb.selector.queryAncestor(oSelect,'.ap-composeSecureMessages-form');
+	var oLabelContainer = bb.selector.query(oUseCaseContainter,'.ap-composeSecureMessages-messageTextLabelContainer');
+	var iSelectedIndex = phe.select.getSelectedIndex(oSelect);
+	var oprivateAssist = bb.selector.query(oUseCaseContainter,'.ap-composeSecureMessages-messageTextAPBLabelContainer');
+	var sProxyUrl;
+	//if((clienttype=='S') && (sbu=='E'))
+	if(absa.APBINDICATOR == 'true')
+		{
+			phe.common.hide(oprivateAssist);
+		}
+	phe.common.show(oLabelContainer);
+	
+	// set ProxyUrl
+	switch (phe.select.getValue(oSelect)){
+		// IWantToKnowMoreAbout
+		case '3':
+			sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/compose&mode=moreInfoEnquiry';
+			break;
+		// TransactionEnquiry
+		case '2':
+			sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/compose&mode=transactionEnquiry&enquiryType=transactionEnquiry';
+			break;
+		// General
+		case '1':
+			sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/compose&mode=generalEnquiry';
+			break;
+		//case 'select':
+		default:
+			sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/compose&mode=selectOption';
+			phe.common.hide(oLabelContainer);
+			//if((clienttype=='S') && (sbu=='E'))
+			if(absa.APBINDICATOR == 'true')
+			{
+				phe.common.show(oprivateAssist);
+			}
+			break;
+	}
+	phe.common.setAttribute(oFormBody, 'proxyurl', sProxyUrl);
+	absa.lazyLoadNode(oFormBody, true);
+	
+	// reset form
+	phe.form.reset(oForm);
+	phe.select.setSelectedIndex(oSelect, iSelectedIndex);
+};
+
+absa.apps.composeSecureMessage.onFormReset = function(oButton){
+	var oUseCaseContainter = bb.selector.queryAncestor(oButton,'.ap-composeSecureMessages');
+	var oForm = bb.selector.queryAncestor(oButton,'.ap-composeSecureMessages-form');
+	var oSelect = bb.selector.query(oForm,'.ap-composeSecureMessages-enquiryTypeSelect');
+	var iSelectedIndex = phe.select.getSelectedIndex(oSelect);
+	
+	// reset form but preserve selected index for type of enquiry select
+	phe.form.reset(oForm);
+	phe.select.setSelectedIndex(oSelect, iSelectedIndex);
+};
+
+absa.apps.composeSecureMessage.onCancelButtonClick = function(oButton){
+	var oForm = bb.selector.queryAncestor(oButton,'.ap-composeSecureMessages-form');
+	var oSelect = bb.selector.query(oForm, '.ap-composeSecureMessages-enquiryTypeSelect');
+	
+	//set form to default view
+	phe.select.setSelectedIndex(oSelect, 0);
+	absa.apps.composeSecureMessage.onPurposeOfEnquirySelect(oSelect);
+};
+
+absa.apps.composeSecureMessage.ontest = function(oButton){
+    document.getElementById("test").visibility = "hidden";
+
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.deleteSecureMessageContent = absa.apps.deleteSecureMessageContent || {};
+
+absa.apps.deleteSecureMessageContent.onCancelDeleteFromModal = function(){
+	phe.modal.hideModal();
+};
+
+absa.apps.deleteSecureMessageContent.onDeleteFromTableButtonClick = function (oButton,sMessageType,sMessageID) {
+	var oRow = bb.selector.queryAncestor(oButton, '.ap-viewSecureMessages-tableRow');
+	var oModal= bb.selector.query(oRow, '.ap-viewSecureMessages-deleteMessageModal');
+	phe.modal.showModal('0.2', oModal, document.body, true);
+};
+
+absa.apps.deleteSecureMessageContent.onDeleteFromModalButtonClick = function(oButton,sMessageType,sMessageID){
+	absa.apps.deleteSecureMessageContent.onDelete(oButton,sMessageType,sMessageID);
+	phe.modal.hideModal();
+};
+
+absa.apps.deleteSecureMessageContent.onDeleteConfirm = function (oButton,sMessageType) {
+	//this can be made generic to secure messaging but in order to make generic, a number 3 xsl file classes have to be changed
+	switch(sMessageType){
+	case 'inbox':
+		var oViewReceivedSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewReceivedSecureMessageContent');
+		var oDeleteRow = bb.selector.query(oViewReceivedSecureMessageContent,'.ap-viewReceivedSecureMessageContent-deleteRow');
+		break;
+	case 'sentItems':
+		var oViewSentSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewSentSecureMessageContent');
+		var oDeleteRow = bb.selector.query(oViewSentSecureMessageContent,'.ap-viewSentSecureMessageContent-deleteRow');
+		break;
+	case 'archived':
+		var oViewArchivedSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewArchivedSecureMessageContent');
+		var oDeleteRow = bb.selector.query(oViewArchivedSecureMessageContent,'.ap-viewArchivedSecureMessageContent-deleteRow');
+		break;
+	}
+	oDeleteRow.style.display = '';
+};
+
+absa.apps.deleteSecureMessageContent.onCancelDelete = function (oButton,sMessageType) {
+	switch(sMessageType){
+		case 'inbox':
+			var oViewReceivedSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewReceivedSecureMessageContent');
+			var oDeleteRow = bb.selector.query(oViewReceivedSecureMessageContent,'.ap-viewReceivedSecureMessageContent-deleteRow');
+			break;
+		
+		case 'sentItems':
+			var oViewSentSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewSentSecureMessageContent');
+			var oDeleteRow = bb.selector.query(oViewSentSecureMessageContent,'.ap-viewSentSecureMessageContent-deleteRow');
+		
+		case 'archived':
+			var oViewArchivedSecureMessageContent = bb.selector.queryAncestor(oButton,'.ap-viewArchivedSecureMessageContent');
+			var oDeleteRow = bb.selector.query(oViewArchivedSecureMessageContent,'.ap-viewArchivedSecureMessageContent-deleteRow');
+			break;
+	}
+	oDeleteRow.style.display = 'none';
+};
+
+//sMessageType is 'sentItems' or 'inbox'
+//sAncestorType is 'gadget' or 'modal'
+//eg:absa.apps.deleteSecureMessageContent.onDelete(this,'inbox','1')
+absa.apps.deleteSecureMessageContent.onDelete = function(oButton,sMessageType,sMessageID){
+	var sUrl = 'proxy?pipe=genericWebservice&ws=SecureMessageWebService&action=removeSecureMessage&messageID=' + sMessageID;
+	var oPortalBody = document.getElementById("ap-page-body");
+	var oTabBoxVertical	= bb.selector.query(oPortalBody,'.ap-secureMessages-tabBoxVertical-selected');
+	
+	switch (sMessageType) {
+		case 'inbox':
+			var oTabBoxVerticalBody = bb.selector.query(oTabBoxVertical,'.ap-secureMessages-tabBoxVerticalBodyInbox');
+			break;
+	
+		case 'sentItems':	
+			var oTabBoxVerticalBody = bb.selector.query(oTabBoxVertical,'.ap-secureMessages-tabBoxVerticalBodySentItems');
+			break;
+	
+		case 'archived':	
+			var oTabBoxVerticalBody = bb.selector.query(oTabBoxVertical,'.ap-secureMessages-tabBoxVerticalBodyArchived');
+			break;
+	}
+	
+	//call remove message service
+	absa.io.makeRequest(sUrl, function(oResponse){
+		if (!oResponse.errors.length) {
+			var oXHTML = bb.html.createElementFromString(oResponse.text);
+			var oSuccess = bb.selector.query(oXHTML, '.ap-deleteSecureMessage-success');
+			//tabBoxBody classes differ
+			var sSuccess = oSuccess.innerHTML;
+			
+			if (sSuccess == 'true') {
+				absa.lazyLoadNode(oTabBoxVerticalBody,'true');
+			} else {
+				//handle normal service errors
+				oTabBoxVerticalBody.innerHTML = oXHTML.innerHTML; 
+			}
+		} else { 
+			absa.showIOErrorMessage(oTabBoxVerticalBody);	
+		}
+	});
+	
+	//if delete message takes place from a modal then hide the modal
+	var oModal = bb.selector.queryAncestor(oButton, '.ap-secureMessages-modal');
+	if (oModal) {
+		phe.modal.hideModal();
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.archiveSecureMessages = absa.apps.archiveSecureMessages || {};
+
+absa.apps.archiveSecureMessages.onDateRangeFilter = function(oButton){
+	var oForm = bb.selector.queryAncestor(oButton,'.ap-secureMessageViewArchivedStatements-searchForm');
+	var oUseCaseContainer = bb.selector.queryAncestor(oButton,'.ap-secureMessageViewArchivedStatements'); 
+	var oFromDate = bb.selector.query(oUseCaseContainer,'.ap-secureMessageViewArchivedStatements-fromDate');
+	var oToDate = bb.selector.query(oUseCaseContainer,'.ap-secureMessageViewArchivedStatements-toDate');
+	var iDaysDiff = absa.date.getDaysDiff(phe.datePicker.getValue(oFromDate), phe.datePicker.getValue(oToDate));
+	var bIsOneMonthApart = absa.apps.archiveSecureMessages.isOneMonthApart(phe.datePicker.getValue(oFromDate), phe.datePicker.getValue(oToDate));
+	var sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=secureMessage/archive&mode=';
+	var oSearchContentContainer	= bb.selector.query(oUseCaseContainer,'.ap-secureMessageViewArchivedStatements-searchContentContainer');
+	
+		//validate date range form
+	if (absa.form.validate(oForm)) {
+		//validate date range
+		
+		if (!bIsOneMonthApart || iDaysDiff < 0) {
+			sProxyUrl += 'dateRangeMoreThan30';
+			phe.common.setAttribute(oSearchContentContainer, 'proxyurl', sProxyUrl);
+			absa.lazyLoadNode(oSearchContentContainer,true);
+		} else {
+			sProxyUrl += 'table';
+			phe.common.setAttribute(oSearchContentContainer, 'proxyurl', sProxyUrl);
+			absa.lazyLoadNode(oSearchContentContainer,true,function(){
+				//reload table
+				var oTable = bb.selector.query(oUseCaseContainer,'.ap-secureMessageViewArchivedStatements-table');
+				var sFromDate = phe.datePicker.getValue(oFromDate);
+				var sToDate = phe.datePicker.getValue(oToDate);
+				var sDefaultDataFile = 'proxy?pipe=genericWebservice&ws=SecureMessageWebService&action=viewSecureMessages&view=archive&readStatus=3&fromDate=' + sFromDate + '&toDate=' + sToDate;
+				var sDataFile = sDefaultDataFile + '&sendStatus=0';
+				phe.table.setAttribute(oTable, 'dataFile', sDataFile);
+				phe.table.reload(oTable);
+				phe.table.setAttribute(oTable, 'dataFile', sDefaultDataFile);
+			});
+		}
+	}
+};
+
+absa.apps.archiveSecureMessages.isOneMonthApart = function(sFromDate, sToDate){
+	var oFromDate = new Date(Number(sFromDate.substring(0,4)),(Number(sFromDate.substring(5,7))-1),Number(sFromDate.substring(8,10)));
+	var oToDate = new Date(Number(sToDate.substring(0,4)),(Number(sToDate.substring(5,7))-1),Number(sToDate.substring(8,10)));
+	
+	var iFromMonth = parseInt(oFromDate.getMonth());
+	var iFromMonthYear = parseInt(oFromDate.getFullYear());
+	
+	var iDaysDiff = parseInt(absa.date.getDaysDiff(sFromDate, sToDate));
+	var iLastDayOfFromDate = parseInt(absa.apps.archiveSecureMessages.getLastDayOfMonth(iFromMonth, iFromMonthYear));
+	
+	if ((iDaysDiff > 30 && iLastDayOfFromDate==31) || (iDaysDiff > 29 && iLastDayOfFromDate==30) || (iDaysDiff > 27 && iLastDayOfFromDate==28) || (iDaysDiff > 28 && iLastDayOfFromDate==29)) {
+		return false;
+	} else {
+		return true;
+	}
+};
+
+absa.apps.archiveSecureMessages.getLastDayOfMonth = function(iMonth, iYear){
+	return (new Date((new Date(iYear, iMonth+1,1))-1)).getDate();
+};
+
+absa.apps.archiveSecureMessages.onSendTypeFilter = function(oSelect){
+	var oTable = bb.selector.queryAncestor(oSelect, '.ap-secureMessageViewArchivedStatements-table');
+	var sDefaultDataFile = phe.table.getAttribute(oTable, 'dataFile');
+	var sDataFile = sDefaultDataFile + '&sendStatus=' +phe.select.getValue(oSelect);
+	
+	phe.table.setAttribute(oTable, 'dataFile', sDataFile);
+	phe.table.reload(oTable);
+	
+	//after reloading the table, reset datafile to default
+	phe.table.setAttribute(oTable, 'dataFile', sDefaultDataFile);
+};
+
+absa.apps.archiveSecureMessages.onArchiveMessageFromModal = function(oButton, sMessageID){
+	var oModal	= bb.selector.queryAncestor(oButton, '.ap-secureMessages-modal');
+	var oDiv 	= bb.selector.query(oModal, '.ap-secureMessageViewArchivedStatements-modalContent');	
+	absa.lazyLoadNode(oDiv, true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.resendSecureMessage = absa.apps.resendSecureMessage || {};
+
+absa.apps.resendSecureMessage.onResendButtonClick = function (oButton, sMessageID){
+	var oUseCaseContainer = bb.selector.queryAncestor(oButton,'.ap-viewSentSecureMessageContent');
+	var sUrl = 'proxy?pipe=genericWebservice&ws=SecureMessageWebService&action=resendSecureMessage&messageID=' + sMessageID;
+	phe.common.setAttribute(oUseCaseContainer, 'proxyurl', sUrl);
+	absa.lazyLoadNode(oUseCaseContainer, true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.iPayroll	= absa.apps.iPayroll || {};
+
+absa.apps.iPayroll.onRegisterButtonClick = function(oButton){
+	var oDiv						= bb.selector.queryAncestor(oButton, '.ap-iPayroll-Content');
+	var oRadioGroup					= bb.selector.query(oDiv, '.ap-iPayroll-radioGroup');
+	var oContentContainer			= bb.selector.query(oDiv, '.ap-iPayroll-noticeBox');
+	var oContentContainerWrapper	= bb.selector.query(oDiv, '.ap-iPayroll-loadingMessageContainer');
+	var oValidationBox				= bb.selector.query(oDiv, '.ap-iPayroll-validationMessage');
+	var oErrorBox					= bb.selector.query(oDiv, '.ap-iPayroll-errorMessage');
+	var oWarningBox					= bb.selector.query(oDiv, '.ap-iPayroll-warningMessage');
+	var oRegisterButton				= bb.selector.query(oDiv, '.ap-iPayroll-registerButton');
+	var oIOErrorContainer			= bb.selector.query(oDiv, '.ap-iPayroll-ioErrorMessages');
+	var option;
+
+	phe.button.setAttribute(oRegisterButton, 'disabled', 'true');
+	phe.common.hide(oValidationBox);
+	phe.common.hide(oErrorBox);
+	phe.common.hide(oWarningBox);
+
+	if (phe.radioGroup.getValue(oRadioGroup) == 1) {
+		option	= false;
+	} else {
+		option	= true;
+	}
+
+	var sUrl	= 'proxy?pipe=genericWebservice&ws=IPayrollWebService&action=registerForIPayrollService&payrollClient=' + option;
+	var sUrl2	= 'proxy?pipe=genericWebservice&ws=IPayrollWebService&action=verifyIPayrollServiceStatus&view=getGuid';
+
+	phe.loadingMessage.showLoadingMessage(oContentContainerWrapper,'Loading');
+	absa.io.makeRequest(sUrl, function( oResponse ){
+		if (!oResponse.errors.length) {
+			phe.common.hide(oIOErrorContainer);
+			var oXHTML = bb.html.createElementFromString(oResponse.text);
+			if (oContentContainer) {
+				oContentContainer.parentNode.replaceChild(oXHTML,oContentContainer);
+				phe.common.show(oContentContainer);
+			} else {
+				oContentContainerWrapper.appendChild(oXHTML);
+				phe.common.show(oContentContainerWrapper);
+			}
+
+			absa.initializeNewContent(oContentContainer);
+
+			var oResponseSuccess = bb.selector.query(oDiv, '.ap-iPayroll-responseSuccess');
+			if (oResponseSuccess) {
+				var responseSuccess = phe.hiddenField.getValue(oResponseSuccess);
+				if (responseSuccess == 'validation') {
+					phe.common.show(oValidationBox);
+					var oValidationKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var validationKey	= phe.hiddenField.getValue(oValidationKey);
+					var validationMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-validationMessageDisplay');
+					validationMsgDisplay.innerHTML = validationKey;
+				
+				} else if (responseSuccess == 'error') {
+					phe.common.show(oErrorBox);
+					var oErrorKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var errorKey	= phe.hiddenField.getValue(oErrorKey);
+					var errorMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-errorMessageDisplay');
+					errorMsgDisplay.innerHTML = errorKey;
+					
+				} else if (responseSuccess == 'warning') {
+					phe.common.show(oWarningBox);
+					var oWarningKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var warningKey	= phe.hiddenField.getValue(oWarningKey);
+					var warningMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-warningMessageDisplay');
+					warningMsgDisplay.innerHTML = warningKey;
+				}
+				phe.loadingMessage.hideLoadingMessage(oContentContainerWrapper);
+			} else {
+				absa.io.makeRequest(sUrl2, function( oResponse2 ){
+					if (!oResponse.errors.length) {
+						phe.common.hide(oIOErrorContainer);
+						var oXHTML2	= bb.html.createElementFromString(oResponse2.text);
+						var oGuid	= bb.selector.query(oXHTML2, '.ap-iPayroll-guid');
+						var guid	= phe.hiddenField.getValue(oGuid);
+						var oLink	= bb.selector.query(oXHTML, '.ap-iPayroll-link');
+						//window.open('https://www.ipayroll.co.za/BDB.Online.Web/Logon/BIBUserDefault.aspx?guid=' + guid);
+						window.open('https://www.ipayroll.co.za/WebPayroll/Logon/BIBUserDefault.aspx?guid=' + guid);
+						phe.loadingMessage.hideLoadingMessage(oContentContainerWrapper);
+					} else {
+						if (oContentContainer){
+							phe.common.hide(oContentContainer);
+						} else {
+							phe.common.hide(oContentContainerWrapper);
+						}
+						phe.loadingMessage.hideLoadingMessage(oContentContainerWrapper);
+						phe.common.show(oIOErrorContainer);
+						absa.showIOErrorMessage(oIOErrorContainer);
+					}
+				});
+			}
+			phe.button.setAttribute(oRegisterButton, 'disabled', '');
+		} else {
+			if (oContentContainer) {
+				phe.common.hide(oContentContainer);
+			} else {
+				phe.common.hide(oContentContainerWrapper);
+			}
+			phe.loadingMessage.hideLoadingMessage(oContentContainerWrapper);
+			phe.common.show(oIOErrorContainer);
+			absa.showIOErrorMessage(oIOErrorContainer);
+			phe.button.setAttribute(oRegisterButton, 'disabled', '');
+			//phe.button.setAttribute(oCancelButton, 'disabled', '');
+		}
+	});
+};
+
+//To utilise the accessIPayroll service via a link
+absa.apps.iPayroll.logonFromLink = function(oButton){
+	var oDiv				= bb.selector.queryAncestor(oButton, '.ap-iPayroll-Content');
+	var sUrl				= 'proxy?pipe=genericWebservice&ws=IPayrollWebService&action=verifyIPayrollServiceStatus&view=getGuid';
+	//TODO: Error handling after services is redone. As this function is gonna change.
+	absa.io.makeRequest(sUrl, function( oResponse ){
+		var oXHTML			= bb.html.createElementFromString(oResponse.text);
+		var oGuid 	= bb.selector.query(oXHTML, '.ap-iPayroll-guid');
+		var guid	= phe.hiddenField.getValue(oGuid);
+		//window.open('https://www.ipayroll.co.za/BDB.Online.Web/Logon/BIBUserDefault.aspx?guid=' + guid);
+		window.open('https://www.ipayroll.co.za/WebPayroll/Logon/BIBUserDefault.aspx?guid=' + guid);
+	});
+};
+
+absa.apps.iPayroll.logon = function(oButton){
+	var oDiv				= bb.selector.queryAncestor(oButton, '.ap-iPayroll-Content');
+	var oContentContainer	= bb.selector.query(oDiv, '.ap-iPayroll-contentContainer');
+	var oLoadingMessageContainer	= bb.selector.query(oDiv, '.ap-iPayroll-loadingMessageContainer');
+	var sUrl				= 'proxy?pipe=genericWebservice&ws=IPayrollWebService&action=accessIPayrollService';
+	var oValidationBox		= bb.selector.query(oDiv, '.ap-iPayroll-validationMessage');
+	var oErrorBox			= bb.selector.query(oDiv, '.ap-iPayroll-errorMessage');
+	var oWarningBox			= bb.selector.query(oDiv, '.ap-iPayroll-warningMessage');
+	var oLogonButton		= bb.selector.query(oDiv, '.ap-iPayroll-logonButton');
+	var oCancelButton		= bb.selector.query(oDiv, '.ap-iPayroll-cancelButton');
+	var oIOErrorContainer	= bb.selector.query(oDiv, '.ap-iPayroll-ioErrorMessages');
+
+	phe.common.hide(oValidationBox);
+	phe.common.hide(oErrorBox);
+	phe.common.hide(oWarningBox);
+
+	phe.button.setAttribute(oLogonButton, 'disabled', 'true');
+	if (oCancelButton) {
+		phe.button.setAttribute(oCancelButton, 'disabled', 'true');
+	}
+	phe.loadingMessage.showLoadingMessage(oLoadingMessageContainer,'Loading');
+	absa.io.makeRequest(sUrl, function( oResponse ){
+		if (!oResponse.errors.length) {
+			phe.common.hide(oIOErrorContainer);
+			var oXHTML			= bb.html.createElementFromString(oResponse.text);
+			if (oContentContainer) {
+				oContentContainer.parentNode.replaceChild(oXHTML,oContentContainer);
+			} else {
+				oContentContainer.appendChild(oXHTML);
+			}
+			phe.loadingMessage.hideLoadingMessage(oLoadingMessageContainer);
+			phe.button.setAttribute(oLogonButton, 'disabled', '');
+			if (oCancelButton) {
+				phe.button.setAttribute(oCancelButton, 'disabled', '');
+			}
+			var oResponseSuccess	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccess');
+
+			if (oResponseSuccess) {
+				var responseSuccess	= phe.hiddenField.getValue(oResponseSuccess);
+				if (responseSuccess == 'validation') {
+					phe.common.show(oValidationBox);
+					var oValidationKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var validationKey	= phe.hiddenField.getValue(oValidationKey);
+					var validationMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-validationMessageDisplay');
+					validationMsgDisplay.innerHTML = validationKey;
+					
+				} else if (responseSuccess == 'error') {
+					phe.common.show(oErrorBox);
+					var oErrorKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var errorKey	= phe.hiddenField.getValue(oErrorKey);
+					var errorMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-errorMessageDisplay');
+					errorMsgDisplay.innerHTML = errorKey;
+					
+				} else if (responseSuccess == 'warning') {
+					phe.common.show(oWarningBox);
+					var oWarningKey	= bb.selector.query(oDiv, '.ap-iPayroll-responseSuccessKey');
+					var warningKey	= phe.hiddenField.getValue(oWarningKey);
+					var warningMsgDisplay	= bb.selector.query(oDiv, '.ap-iPayroll-warningMessageDisplay');
+					warningMsgDisplay.innerHTML = warningKey;
+				}
+			} else {
+				var oGuid = bb.selector.query(oDiv, '.ap-iPayroll-guid');
+				var guid	= phe.hiddenField.getValue(oGuid);
+				//window.open('https://www.ipayroll.co.za/BDB.Online.Web/Logon/BIBUserDefault.aspx?guid=' + guid);
+				window.open('https://www.ipayroll.co.za/WebPayroll/Logon/BIBUserDefault.aspx?guid=' + guid);
+			}
+		} else {
+			phe.loadingMessage.hideLoadingMessage(oLoadingMessageContainer);
+			phe.common.show(oIOErrorContainer);
+			absa.showIOErrorMessage(oIOErrorContainer);
+			phe.button.setAttribute(oLogonButton, 'disabled', '');
+			phe.button.setAttribute(oCancelButton, 'disabled', '');
+		}
+	});
+};
+
+absa.apps.iPayroll.showCancelModal = function(oButton){
+	var oDiv	= bb.selector.queryAncestor(oButton, '.ap-iPayroll-Content');
+	var oModal	= bb.selector.query(oDiv, '.ap-iPayroll-cancelModal');
+	phe.modal.showModal('0.5', oModal, document.body, true);
+};
+
+absa.apps.iPayroll.onModalClose	= function(oModal){
+	var oWizard			= bb.selector.query(oModal, '.ap-iPayroll-wizard');
+	var sWizardStep		= phe.wizard.getCurrentStepIndex(oWizard);
+	if (sWizardStep == '1') {
+		absa.apps.iPayroll.reloadTabBodies();
+	}
+};
+
+absa.apps.iPayroll.onDoneButtonClick = function() {
+	absa.apps.iPayroll.reloadTabBodies();
+};
+
+absa.apps.iPayroll.reloadTabBodies = function() {
+	var oTabBoxes = bb.selector.queryAll(window.document, '.ap-dashBoard-tabBox')
+	for (var int = 0; int < oTabBoxes.length; int++) {
+		var oTabBody	= phe.tabBox.getCurrentTabBody(oTabBoxes[int]);
+		if (oTabBody) {
+			if (bb.selector.query(oTabBody, '.ap-iPayroll-Content')) {
+				absa.lazyLoadNode(oTabBody, true);
+			}
+		}
+	}
+};
+
+
+absa.apps.iPayroll.onResetButtonDashboardClick = function(oButton){
+	var oTabBody	= bb.selector.queryAncestor(oButton, '.ap-iPayroll-tabBoxVerticalBody');
+	absa.lazyLoadNode(oTabBody, true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.iLearning	= absa.apps.iLearning || {};
+
+absa.apps.iLearning.onModalButtonClick = function(oButton, parameters, heading){
+	absa.modal.loadModal(parameters, heading, '', absa.apps.iLearning.onModalClose);
+};
+
+absa.apps.iLearning.onModalClose = function(oModal){
+	var oWizard		= bb.selector.query(oModal, '.ap-iLearning-wizard');
+	var sWizardStep	= phe.wizard.getCurrentStepIndex(oWizard);
+	//////CHECKUP
+};
+
+absa.apps.iLearning.load = function(oSave){
+	var oMainRoot = bb.selector.queryAncestor(oSave, '.ap-iLearning-form');
+	var errorMsg = bb.selector.query(oMainRoot, '.ap-iLearning-errorMessage');
+	var sUrl = 'proxy?pipe=genericWebservice&ws=ILearningWebService&action=accessILearningService';
+
+	absa.io.makeRequest(sUrl,function(oResponse){
+		if (!oResponse.errors.length) {
+			phe.form.displayIOErrorMessage(oMainRoot, false);
+
+			var oXHTML = bb.html.createElementFromString(oResponse.text);
+			var userid = bb.selector.query(oXHTML, '.ap-iLearning-userId');
+			var result = bb.selector.query(oXHTML, '.ap-iLearning-result');
+			var password = bb.selector.query(oXHTML, '.ap-iLearning-password');
+			var error = bb.selector.query(oXHTML, '.ap-iLearning-error');
+
+			if (error) {
+				phe.message.setMessage(errorMsg, phe.hiddenField.getValue(error));
+				bb.html.removeClass(errorMsg, 'ap-common-hide');
+			} else {
+				bb.html.addClass(errorMsg, 'ap-common-hide');
+				window.open("http://central.mindleaders.com/lms/login.jsp?userid="+phe.hiddenField.getValue(userid)+"&password="+phe.hiddenField.getValue(password));
+			}
+		} else {
+			phe.form.displayIOErrorMessage(oMainRoot, true);
+		}
+	});
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.updateNettWorth = absa.apps.updateNettWorth || {};
+
+absa.apps.updateNettWorth.loadSetupOfAssetsAndLiabilitiesModal = function(sGraphType, oGraphButton) {
+	var oTabBoxMain		= bb.selector.queryAncestor(oGraphButton, '.ui-tabBox');
+	var oDiv			= phe.tabBox.getCurrentTabBody(oTabBoxMain);
+	var sUrl			= "proxy?pipe=genericEmptyResponse&xslFile=Dashboards/Accounts/updateNettWorth&graphType="+ sGraphType;
+	var sHeading		= absa.locale['Accounts/UpdateNettWorth/Label/MyAssetsAndLiabilities'];
+	var oSelect			= bb.selector.query(oDiv, '.ap-viewAssetsSummaryGraph-getBiBSelector');
+	if (oSelect) {
+		var iSelectIndex	= phe.select.getSelectedIndex(oSelect);
+		sUrl 				+= "&selectedIndex=" + iSelectIndex;
+		sHeading			= absa.locale['Accounts/UpdateNettWorth/Label/AssetsAndLiabilities'];
+	}
+	absa.modal.loadModal(sUrl, sHeading, function() {
+		var oModal = arguments[0];
+		
+		//for a business user scrollTo is handled onlazyloadNode of the tabBody
+		//to remove this if statement we need an onlazyloadNode on a form
+		if (oSelect) {
+			absa.apps.updateNettWorth.scrollTo(oModal, sGraphType);
+		}
+		absa.apps.updateNettWorth.changeModalPrintFunction(oModal);
+	});
+};
+
+absa.apps.updateNettWorth.changeModalPrintFunction = function(oModal){
+	var oPrintButton = bb.selector.query(oModal, '.ui-modal-printButton');
+	oPrintButton.onclick = function(){absa.print.printGadgetGenericNettWorth(oPrintButton);};
+};
+
+absa.apps.updateNettWorth.onBusinessEntityTabBodyLoad = function(oTabBody, sGraphType){
+	absa.apps.updateNettWorth.scrollTo(oTabBody, sGraphType);
+};
+
+absa.apps.updateNettWorth.scrollTo = function (oAncestorNode, sGraphType) {
+	if (sGraphType == "LiailitySummaryGraph") {
+		var oNode	= bb.selector.query(oAncestorNode, '.ap-updateNettWorth-liabilitySection');
+	} else {
+		var oNode	= bb.selector.query(oAncestorNode, '.ap-updateNettWorth-assetSection');
+	}
+	if (oNode) {
+		bb.command.scrollTo(oNode);
+	}
+};
+
+absa.apps.updateNettWorth.displayResultMessage = function(oInput, oResponse, sClientType) {
+	var oModal;
+	var oDiv;
+	if (sClientType == 'B') {
+		oModal	= bb.selector.queryAncestor(oInput, '.ap-updateNettWorth-BibForm');
+		oDiv	= bb.selector.query(oModal, '.ap-updateNettworth-BibSuccessMessage');
+		
+		//PS: Update the 'Add Entity' text in tab in case the user changed it 
+		//doing it this ways saves us a reload of entire content
+		var oRoot = bb.selector.queryAncestor(oInput,".ap-updateNettworth-modalScroller");
+		var oTab = bb.selector.query(oRoot,".ui-tab-selected");
+		var oTabContainer = bb.selector.queryAncestor(oTab,".ap-updateNettworth-tabBox");
+		var oTabBody = phe.tabBox.getCurrentTabBody(oTabContainer);
+		var oShortNameFld = bb.selector.query(oTabBody,".ap-updateNettWorth-shortName-Fld");
+		oTab.innerHTML = oShortNameFld.value;
+		
+	} else {
+		oModal	= bb.selector.queryAncestor(oInput, '.ap-updateNettworth-modalBody');
+		oDiv	= bb.selector.query(oModal, '.ap-updateNettworth-successMessage');
+	}
+	oDiv.innerHTML = oResponse.text;
+};
+
+absa.apps.updateNettWorth.onchangeAssetAndLiability	= function(oInput, elementClass, subTotalRowClass, columnClass, columnTotalClass, tabId) {
+	var oForm = bb.selector.queryAncestor(oInput, '.ap-updateNettWorth-form');
+	if (absa.form.validate(oForm)) {
+		//Calculate row total
+		var oRow			= bb.selector.queryAncestor(oInput, '.ap-updateNettWorth-row');
+		var aRowInputs		= bb.selector.queryAll(oRow, '.' + elementClass);
+		var oRowTotal		= bb.selector.query(oRow, '.ap-updateNettWorth-rowTotal');
+		var rowTotalValue	= 0;
+		
+		for (var i = 0; i < aRowInputs.length; i++) {
+			if (aRowInputs[i] == '-' || aRowInputs[i] == '' || aRowInputs[i] == '0.00') {
+				rowTotalValue += 0.00;
+			} else {
+				rowTotalValue += phe.amountField.parseFormatedNumber(aRowInputs[i].value, true);
+			}
+		}
+		
+		phe.inputReadOnlyText.setValue(oRowTotal, phe.amountField.formatNumber(rowTotalValue));
+		
+		//Calculate column sub total
+		var oGrid			= bb.selector.queryAncestor(oInput, '.ap-updateNettWorth-grid');
+		var aColumnInputs	= bb.selector.queryAll(oGrid, '.' + elementClass + '.' + columnClass);
+		var oSubTotalRow	= bb.selector.query(oGrid, '.' + subTotalRowClass);
+		var oColumnTotal	= bb.selector.query(oSubTotalRow, '.' + columnTotalClass);
+		var columnTotal		= 0;
+		
+		for (var i = 0; i < aColumnInputs.length; i++) {
+			if (aColumnInputs[i] == '-' || aColumnInputs[i] == '' || aColumnInputs[i] == '0.00') {
+				columnTotal += 0.00;
+			} else {
+				columnTotal += phe.amountField.parseFormatedNumber(aColumnInputs[i].value, true);
+			}
+		}
+		
+		phe.inputReadOnlyText.setValue(oColumnTotal, phe.amountField.formatNumber(columnTotal));
+		
+		//Calculate sub total
+		var oAbsaSubTotal	= bb.selector.query(oSubTotalRow, '.ap-updateNettWorth-absaSubTotal');
+		var oOtherSubTotal	= bb.selector.query(oSubTotalRow, '.ap-updateNettWorth-otherSubTotal');
+		var oSubTotal		= bb.selector.query(oSubTotalRow, '.ap-updateNettWorth-subTotal');
+		var absaSubTotal	= phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oAbsaSubTotal), true);
+		var otherSubTotal	= phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oOtherSubTotal), true);
+		
+		phe.inputReadOnlyText.setValue(oSubTotal, phe.amountField.formatNumber(absaSubTotal + otherSubTotal));
+		
+		//Calculate asset/liability totals
+		var aAbsaSubTotal	= bb.selector.queryAll(oGrid, '.ap-updateNettWorth-absaSubTotal');
+		var aOtherSubTotal	= bb.selector.queryAll(oGrid, '.ap-updateNettWorth-otherSubTotal');
+		var aSubTotal		= bb.selector.queryAll(oGrid, '.ap-updateNettWorth-subTotal');
+		var oAbsaTotal		= bb.selector.query(oGrid, '.ap-updateNettWorth-absaTotal');
+		var oOtherTotal		= bb.selector.query(oGrid, '.ap-updateNettWorth-otherTotal');
+		var oTotal			= bb.selector.query(oGrid, '.ap-updateNettWorth-total');
+		var absaTotal		= 0;
+		var otherTotal		= 0;
+		
+		for (var i = 0; i < aAbsaSubTotal.length; i++) {
+			if (aAbsaSubTotal[i] == '-' || aAbsaSubTotal[i] == '' || aAbsaSubTotal[i] == '0.00') {
+				absaTotal += 0.00;
+			} else {
+				absaTotal += phe.amountField.parseFormatedNumber(aAbsaSubTotal[i].value, true);
+			}
+		}
+		
+		for (var i = 0; i < aOtherSubTotal.length; i++) {
+			if (aOtherSubTotal[i] == '-' || aOtherSubTotal[i] == '' || aOtherSubTotal[i] == '0.00') {
+				otherTotal += 0.00;
+			} else {
+				otherTotal += phe.amountField.parseFormatedNumber(aOtherSubTotal[i].value, true);
+			}
+		}
+		
+		phe.inputReadOnlyText.setValue(oAbsaTotal, phe.amountField.formatNumber(absaTotal));
+		phe.inputReadOnlyText.setValue(oOtherTotal, phe.amountField.formatNumber(otherTotal));
+		phe.inputReadOnlyText.setValue(oTotal, phe.amountField.formatNumber(absaTotal + otherTotal));
+		
+		//Calculate nett worth totals
+		if (tabId == 'I1' || tabId == 'I2' || tabId == '') {
+			var oAbsaTotalAssets		= bb.selector.query(oForm, '.ap-updateNettWorth-absaTotalAssets');
+			var oOtherTotalAssets		= bb.selector.query(oForm, '.ap-updateNettWorth-otherTotalAssets');
+			var oAbsaTotalLiabilities	= bb.selector.query(oForm, '.ap-updateNettWorth-absaTotalLiabilities');
+			var oOtherTotalLiabilities	= bb.selector.query(oForm, '.ap-updateNettWorth-otherTotalLiabilities');
+			var oNettWorthAbsa			= bb.selector.query(oForm, '.ap-updateNettworth-nettWorthAbsaTotal');
+			var oNettWorthOther			= bb.selector.query(oForm, '.ap-updateNettworth-nettWorthLiabilityTotal');
+			var oNettWorthTotal			= bb.selector.query(oForm, '.ap-updateNettworth-nettWorthTotal');
+			var nettWorthAbsa 	= 0;
+			var nettWorthOther 	= 0;
+			
+			nettWorthAbsa	= phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oAbsaTotalAssets)) - phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oAbsaTotalLiabilities));
+			nettWorthOther	= phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oOtherTotalAssets)) - phe.amountField.parseFormatedNumber(phe.inputReadOnlyText.getValue(oOtherTotalLiabilities));
+			
+			phe.inputReadOnlyText.setValue(oNettWorthAbsa, phe.amountField.formatNumber(nettWorthAbsa));
+			phe.inputReadOnlyText.setValue(oNettWorthOther, phe.amountField.formatNumber(nettWorthOther));
+			phe.inputReadOnlyText.setValue(oNettWorthTotal, phe.amountField.formatNumber(nettWorthAbsa + nettWorthOther));
+		}
+	}
+};
+
+absa.apps.updateNettWorth.onClickOfDone	= function(oInput, sGraphName) {
+	phe.modal.hideModal();
+	gadgets.pubsub.publish("goTo:dashboard/netWorthGraphs");	
+};
+
+absa.apps.updateNettWorth.printNettWorth	= function(oButton) {
+	absa.openReport('report/nettWorthDetails.csv?tabID=', 'nettWorth');
+};
+
+absa.apps.updateNettWorth.printNettWorthBIB	= function(oModal) {
+	var oModal2 = bb.selector.query(document.body,".ap-updateNettworth-modalBody");
+	var oTabBox	=	 bb.selector.query(oModal2,'.ap-updateNettworth-tabBox');
+	var i = phe.tabBox.getCurrentTabIndex(oTabBox);
+	i = i + 1;
+	if ( i < 4 ) {
+		absa.openReport('report/nettWorthDetails.csv?tabID=B'+i+'', 'nettWorth');
+	} else {
+		if( i == 4 ){
+			absa.openReport('report/nettWorthDetails.csv?tabID=I1', 'nettWorth');
+		}else{
+			absa.openReport('report/nettWorthDetails.csv?tabID=I2', 'nettWorth');
+		}
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.changeAccountGraph = absa.apps.changeAccountGraph || {};
+
+//for Setting the Selected graph to the Dashboard Gadget for Personalisation
+absa.apps.changeAccountGraph.onSelectGraphSetPreference	= function(oElem, sGraphName) {
+	var sId					= bb.selector.queryAncestor(oElem, '.p-gadget-content[id]').id;
+	var oGadget				= bb.document.getElementById(sId);
+	oGadget.setPreference('displayedGraphSelector', sGraphName);
+	var oTab				= bb.selector.queryAncestor(oElem, '.ap-changeAccountGraph-graph');
+	var oSelectedTabHead	= bb.selector.query(oTab,'.ap-changeAccountGraph-tabHeads ' + sGraphName);
+	//phe.tabBox.selectTab(oSelectedTabHead);
+	absa.apps.changeAccountGraph.changeTab(oElem, sGraphName);
+};
+
+//for Setting the Selected graph to the Dashboard Gadget for Personalisation
+absa.apps.changeAccountGraph.onSelectGraphSetPreferenceForLogonCountSeven = function(oElem, sGraphName) {
+	var sId					= bb.selector.queryAncestor(oElem, '.p-gadget-content[id]').id;
+	var oGadget				= bb.document.getElementById(sId);
+	oGadget.setPreference('displayedGraphSelectorForLogonCountSeven', sGraphName);
+	var oTab				= bb.selector.queryAncestor(oElem,'.ap-changeAccountGraph-graph-forlogoncount-seven');
+	var oSelectedTabHead	= bb.selector.query(oTab,'.ap-changeAccountGraph-tabHeads-forLogonCountSeven ' + sGraphName);
+	//phe.tabBox.selectTab(oSelectedTabHead);
+	absa.apps.changeAccountGraph.changeTab(oElem, sGraphName);
+};
+
+absa.apps.changeAccountGraph.changeTab	= function(oTr, oClass) {
+	var oTab							= bb.selector.queryAncestor(oTr, '.ui-tabBox');
+	var oSelectedTabHead				= bb.selector.query(oTab, '.ui-tabHeads ' + oClass);
+	var aTabHead						= bb.selector.queryAll(oTab, '.ui-tabHeads li');
+	for (var i = 0; i < aTabHead.length; i++) {
+		if (!bb.html.hasClass(aTabHead[i], 'ap-viewTab-change')) {
+			aTabHead[i].style.display = 'none';
+		}
+	}
+	oSelectedTabHead.style.display	= '';
+	phe.tabBox.selectTab(oSelectedTabHead);
+};
+
+absa.apps.changeAccountGraph.onChartTypeClick	= function (oGraph) {
+	var oTab1			= bb.selector.queryAncestor(oGraph,'.ap-changeAccountGraph-graph-forlogoncount-seven');
+	var oTab2			= bb.selector.queryAncestor(oGraph,'.ap-changeAccountGraph-graph');
+	if (oTab1) {
+		absa.apps.changeAccountGraph.setChartTypePreference(oGraph,'displayedChartTypeForLogonCountSeven', oTab1);
+	} else if (oTab2) {
+		absa.apps.changeAccountGraph.setChartTypePreference(oGraph,'displayedChartType', oTab2);
+	}
+};
+
+absa.apps.changeAccountGraph.setChartTypePreference	= function (oGraph, sDisplayedChartType, oTabBox) {
+	var oGadgetContent	= bb.selector.queryAncestor(oGraph,'.p-gadget-content[id]');
+	if(oGadgetContent){
+		var oGadget			= bb.document.getElementById(oGadgetContent.id);
+		var oTabBody		= phe.tabBox.getCurrentTabBody(oTabBox);
+		var sProxyUrl		= phe.tabBody.getAttribute(oTabBody, 'data-proxyurl') + '&graphType=' + phe.graph.getAttribute(oGraph, 'chartType');
+		oGadget.setPreference(sDisplayedChartType, phe.graph.getAttribute(oGraph, 'chartType'));
+		phe.tabBody.setAttribute(oTabBody, 'proxyurl', sProxyUrl);
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.nettWorthGraphs = absa.apps.nettWorthGraphs || {};
+
+absa.apps.nettWorthGraphs.onChangeGraphSelector	= function(oSelect, sGraphName, sBlockName) {
+	absa.apps.nettWorthGraphs.refreshGraph(oSelect, sGraphName, sBlockName);
+};
+
+absa.apps.nettWorthGraphs.refreshGraph = function(oSelect, sGraphName, sBlockName) {
+	var oSelectEntityValue	= phe.select.getValue(oSelect);
+	var sDataFile			= '';
+	var oGraphClientType	= null;
+	
+	if (sGraphName == "AssetsSummaryGraph") {
+		oGraphClientType 	= bb.selector.queryAncestor(oSelect, ".ap-viewAssetsSummary-Graph-" + sBlockName);
+		sDataFile			= "proxy?pipe=genericWebservice&ws=AssetWebService&action=getAssets&tabId="+oSelectEntityValue;
+		absa.apps.nettWorthGraphs.getGraphData(oGraphClientType, sDataFile);
+		
+	}  else if (sGraphName == "LiailitySummaryGraph") {
+		oGraphClientType 	= bb.selector.queryAncestor(oSelect, ".ap-viewLiabilitySummary-Graph-" + sBlockName);
+		sDataFile			= "proxy?pipe=genericWebservice&ws=AssetWebService&action=getLiabilities&tabId="+oSelectEntityValue;
+		absa.apps.nettWorthGraphs.getGraphData(oGraphClientType, sDataFile);
+		
+	} else if (sGraphName == "NettWorthSummaryGraph") {
+		oGraphClientType	= bb.selector.queryAncestor(oSelect, ".ap-viewNettWorthSummary-Graph-" + sBlockName);
+		sDataFile			= "proxy?pipe=genericWebservice&ws=AssetWebService&action=getNettWorth&tabId="+oSelectEntityValue;
+		absa.apps.nettWorthGraphs.getGraphData(oGraphClientType, sDataFile);
+		
+	} else if (sGraphName == "NettWorthGraph") {
+		oGraphClientType 	= bb.selector.queryAncestor(oSelect, ".ap-viewNettWorthGraph-graphTabbox");
+		sDataFile				= "proxy?pipe=genericWebservice&ws=AssetWebService&action=getAssets&tabId="+oSelectEntityValue;
+		var oAssetGraphType		=  bb.selector.query(oGraphClientType,".ap-getNettWorth-getAssetGraph-" + sBlockName);
+		absa.apps.nettWorthGraphs.getGraphData(oAssetGraphType, sDataFile);
+		
+		var oLiabilityGraphType		=  bb.selector.query(oGraphClientType, ".ap-getNettWorth-getLiabilityGraph-" + sBlockName);
+		sDataFile					= "proxy?pipe=genericWebservice&ws=AssetWebService&action=getLiabilities&tabId="+oSelectEntityValue;
+		var oLiabilityGraphs		= bb.selector.query(document.body, ".ap-getNettWorth-getLiabilityGraph-" + sBlockName);
+		absa.apps.nettWorthGraphs.getGraphData(oLiabilityGraphs, sDataFile);		
+	}
+};
+
+absa.apps.nettWorthGraphs.getGraphData = function (oGraph, sDataFile){
+	if (oGraph) {
+		phe.common.setAttribute(oGraph, "datafile", sDataFile);
+		phe.graph.getGraphData(oGraph);
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewLimits = absa.apps.viewLimits || {};
+
+absa.apps.viewLimits.onRefreshButtonClick = function(oButton){
+	absa.apps.viewLimits.refresh(oButton);
+};
+
+absa.apps.viewLimits.onChangeButtonClick = function(oButton, sUrl, sTitle){
+	absa.apps.changeLimits.opener = oButton;
+	absa.modal.loadModal(sUrl, sTitle, '', absa.apps.viewLimits.onModalClose);
+};
+
+absa.apps.viewLimits.onModalClose = function(oModal) {
+	var oWizard		= bb.selector.query(oModal, '.ap-changeLimits-wizard');
+	var sWizardStep	= phe.wizard.getCurrentStepIndex(oWizard);
+	
+	if (sWizardStep == '2') {
+		var oForm	= bb.selector.query(oModal, '.ap-changeLimits-form3');
+		absa.apps.changeLimits.reloadSite(oForm);
+	}
+};
+
+absa.apps.viewLimits.refresh = function(oButton){
+	var oTabBoxVertical = bb.selector.queryAncestor(oButton,'.ap-paymentLimits-tabBoxVertical');
+	
+	//load contents from dashboard
+	if(oTabBoxVertical){
+		var oTabBoxVerticalBody	= bb.selector.query(oTabBoxVertical,'.ap-paymentLimits-viewLimitsTabBoxVerticalBody');
+		absa.lazyLoadNode(oTabBoxVerticalBody,true);
+	} else {
+		//load contents from profile tab
+		var oTabBox = bb.selector.queryAncestor(oButton, '*[proxyurl]');
+		absa.lazyLoadNode(oTabBox,true);
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.changeLimits = absa.apps.changeLimits || {};
+
+absa.apps.changeLimits.opener = null;
+
+absa.apps.changeLimits.onFinishButtonClick = function(oButton){
+	// no need to reload tab anymore as we now reload page
+	//absa.apps.viewLimits.refresh(absa.apps.changeLimits.opener);
+	
+	// Remove link
+	absa.apps.changeLimits.opener = null;
+	
+	var oForm = bb.selector.queryAncestor(oButton, '.ap-changeLimits-form3');
+	absa.apps.changeLimits.reloadSite(oForm);
+	phe.modal.hideModal();
+};
+
+
+absa.apps.changeLimits.reloadSite = function(oForm) {
+	// Check if there are is an error message. If there is then do not reload  
+	var oError = bb.selector.query(oForm, '.ap-changeLimits-error');
+	if (!oError) {
+		absa.showPleaseWait();
+		absa.index.refreshUpdaters(true);
+	}
+};
+
+
+absa.apps.changeLimits.onTextBoxChange = function(oTextBox){
+	var oForm = bb.selector.queryAncestor(oTextBox, '.ap-changeLimits-form');
+	var oMessage = bb.selector.query(oForm,'.ap-changeLimits-zeroLimitsWarningMessage');
+	var aTextBoxes = bb.selector.queryAll(oForm, '.ap-changeLimits-textBox');
+	for (var i = 0; i < aTextBoxes.length; i++) {
+		if (parseFloat(phe.textBox.getValue(aTextBoxes[i])) == 0) {
+			phe.message.show(oMessage);
+			break;
+		} else {
+			phe.message.hide(oMessage);
+		}
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewPaymentHistory = absa.apps.viewPaymentHistory || {};
+
+absa.apps.viewPaymentHistory.countday = 10;
+
+absa.apps.viewPaymentHistory.onAccountChange = function(oSelectAccount, type) {
+	absa.apps.viewPaymentHistory.applyFilter(oSelectAccount, type);
+};
+
+absa.apps.viewPaymentHistory.onPaymentTypeChange = function(oSelectPaymentType, type) {
+	absa.apps.viewPaymentHistory.applyFilter(oSelectPaymentType, type);
+};
+
+absa.apps.viewPaymentHistory.applyFilter = function(oSelect, type) {
+	var oRoot = bb.selector.queryAncestor(oSelect,'.ap-viewPaymetHistory-list');
+	var oSelectAcc = bb.selector.query(oRoot,'.ap-viewPaymentHistory-accountDropdown');
+	var oSelectPay = bb.selector.query(oRoot,'.ap-viewPaymentHistory-paymentTypeDropdown');
+	var oRootDiv = bb.selector.queryAncestor(oSelect,'.ap-viewPaymentHistory');
+	var oTable = bb.selector.query(oRootDiv,'.ap-viewPaymentHistory-paymentList');
+	var selacct = phe.select.getValue(oSelectAcc);
+	var selpaytype = phe.select.getValue(oSelectPay);
+	if (selacct == '' || selpaytype == '') {
+		var sDatafile = 'proxy?pipe=genericWebservice&ws=PaymentWebService&action=viewPaymentHistory&mode=table&errorType='+type+
+			'&fromAccount=0';
+		// after function created
+		phe.table.setAttribute(oTable, 'dataFile', sDatafile);
+		//oTable.setAttribute('dataFile', sDatafile);
+		phe.table.reload(oTable);
+	} 	
+	else{
+		var sDatafile = 'proxy?pipe=genericWebservice&ws=PaymentWebService&action=viewPaymentHistory&mode=table&fromAccount='
+				+ selacct
+				+ '&paymentType='
+				+ selpaytype
+				+ '&daysCount='
+				+ absa.apps.viewPaymentHistory.countday
+				+'&errorType='+type;
+
+		// after function
+		phe.table.setAttribute(oTable, 'dataFile', sDatafile);
+		//oTable.setAttribute('dataFile', sDatafile);
+		phe.table.reload(oTable);
+	}
+};
+
+absa.apps.viewPaymentHistory.onIconPress = function(event,oIcon) {
+	absa.util.validateKeyPressEnter(event,function() {
+		absa.apps.viewPaymentHistory.rowNumberToggle.toggle(oIcon);
+	});
+};
+
+absa.apps.viewPaymentHistory.rowNumberToggle = {
+	current : 45,
+	oButton : null,
+	toggle : function(oButton) {
+		if (!this.oButton) {
+			this.oButton = oButton;
+		}
+		/*  if(this.isButtonDisabled()){
+			return;
+		}*/
+		var oRoot = bb.selector.queryAncestor(oButton,'.ap-viewPaymentHistory');
+		var oTable = bb.selector.query(oRoot,'.ap-viewPaymentHistory-paymentList');
+		var oAccountNumber = bb.selector.query(oRoot,'.ap-viewPaymentHistory-accountDropdown');
+		var oPayType = bb.selector.query(oRoot,'.ap-viewPaymentHistory-paymentTypeDropdown');
+
+		var accountNumber = phe.select.getValue(oAccountNumber);
+		var paymentType = phe.select.getValue(oPayType);
+
+		//	oTable.setAttribute('oncallback', 'absa.apps.viewPaymentHistory.rowNumberToggle.enableButton(aNewRows)');
+
+		if (this.current == 10) {
+			countday = 10;
+			bb.html.setClass(oButton, 'ap-icon-1045');
+			bb.html.replaceClass(oTable,'ap-sortableTable-10R', 'ap-sortableTable-40R');
+			var sDatafile = 'proxy?pipe=genericWebservice&ws=PaymentWebService&action=viewPaymentHistory&mode=table&daysCount='
+					+ this.current
+					+ '&fromAccount='
+					+ accountNumber
+					+ '&paymentType='
+					+ paymentType;
+
+			//oTable.setAttribute('dataFile', sDatafile);
+			phe.table.setAttribute(oTable, 'dataFile', sDatafile);
+			phe.table.reload(oTable);
+			this.current = 45;
+		} else {
+			countday = 45;
+			bb.html.setClass(oButton, 'ap-icon-4510');
+			bb.html.replaceClass(oTable,'ap-sortableTable-40R', 'ap-sortableTable-10R');
+			var sDatafile = 'proxy?pipe=genericWebservice&ws=PaymentWebService&action=viewPaymentHistory&mode=table&daysCount='
+					+ this.current
+					+ '&fromAccount='
+					+ accountNumber
+					+ '&paymentType='
+					+ paymentType;
+
+			//oTable.setAttribute('dataFile', sDatafile);
+			phe.table.setAttribute(oTable, 'dataFile', sDatafile);
+			phe.table.reload(oTable);
+			this.current = 10;
+		}
+		this.disableButton();
+	},
+	/* modify 10/45 button */
+	enableButton: function(a) {
+		bb.html.removeClass(this.oButton,'ap-icon-toggleDisabled');
+	},
+	disableButton: function() {
+		bb.html.addClass(this.oButton,'ap-icon-toggleDisabled');
+	},
+	isButtonDisabled: function(){
+		return bb.html.hasClass(this.oButton,'ap-icon-toggleDisabled');
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewSaveInvestPFM	= absa.apps.viewSaveInvestPFM || {};
+
+absa.apps.viewSaveInvestPFM.onReloadLeftSaveInvestPFM = function(oButton,oClass){
+	var sSelectedTab 	= bb.selector.queryAncestor(oButton,'.ap-dashboard-content');
+	var oTab3 			= bb.selector.query(sSelectedTab, '.ap-column-3');
+	var oTab2 			= bb.selector.query(sSelectedTab, '.ap-column-2');
+	var oTabSelect3 	= phe.tabBox.getCurrentTabIndex(bb.selector.query(oTab3,'.ap-changeSaveAndInvestGraph-graph3'));
+	var oTabSel2 		= bb.selector.query(oTab2, '.ap-changeSaveAndInvestGraph-graph2');
+	if (oTabSel2 == null ) {
+		var oTabSelect2 = '0';
+	} else {
+		var oTabSelect2 = phe.tabBox.getCurrentTabIndex(oTabSel2);
+	}
+
+	var selecTabIndex 	= 'null';
+	var oSelectedClass 	= 'null';
+
+	if ((oTabSelect2 =='5' || oTabSelect2 =='4'|| oTabSelect2 =='0') && (oTabSelect3 =='5' ||oTabSelect3 =='4' || oTabSelect3 =='0')) {
+		selecTabIndex 	= '3';
+		oSelectedClass 	=".ap-viewTab-jse1";
+	} else if ((oTabSelect2 =='5' ||oTabSelect2 =='3' || oTabSelect2 =='0') && (oTabSelect3 =='5' ||oTabSelect3 =='3' || oTabSelect3 =='0')) {
+		selecTabIndex 	= '4';
+		oSelectedClass 	=".ap-viewTab-exchange1";
+	} else if ((oTabSelect2 =='3' ||oTabSelect2 =='4' || oTabSelect2 =='0') && (oTabSelect3 =='3' ||oTabSelect3 =='4' || oTabSelect3 =='0')) {
+		selecTabIndex 	= '5';
+		oSelectedClass 	=".ap-viewTab-news1";
+	}
+	// end of select the tab index of block 2 & 3 Dashboards/SaveAndInvest/Graphs/saveinvestGraphLeftBlock
+	var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=Dashboards/SaveAndInvest/Graphs/saveinvestGraphLink';
+	var oDiv 		= bb.selector.queryAncestor(oButton, oClass);
+	var sPostData 	= 'mode=leftBlock';
+	var oParams 	= {};
+	oParams[gadgets.io.RequestParameters.METHOD] 	= gadgets.io.MethodType.POST;
+	oParams[gadgets.io.RequestParameters.POST_DATA] = sPostData;
+	absa.io.makeRequest(sUrl,function(oResponse){
+		if (!oResponse.errors.length) {
+			oDiv.innerHTML 	= oResponse.text;
+			var oTabbox 	= bb.selector.query(oDiv, '.ap-changeSaveAndInvestGraph-graph1');
+			phe.tabBox.selectTabByIndex(oTabbox, selecTabIndex);
+			var oSelectedTabHead 			= bb.selector.query(oDiv, oSelectedClass);
+			oSelectedTabHead.style.display 	= '';
+		} else {
+			absa.showIOErrorMessage(oDiv);
+		}
+	}, oParams);
+};
+
+absa.apps.viewSaveInvestPFM.onReloadMiddleSaveInvestPFM = function(oButton,oClass){
+	var sSelectedTab 	= bb.selector.queryAncestor(oButton, '.ap-dashboard-content');
+	var oTab3 			= bb.selector.query(sSelectedTab, '.ap-column-3');
+	var oTab1 			= bb.selector.query(sSelectedTab, '.ap-column-1');
+	var oSelect1 		= bb.selector.query(oTab1,'.ap-changeSaveAndInvestGraph-graph1');
+	var oTabSelect3 	= phe.tabBox.getCurrentTabIndex(bb.selector.query(oTab3,'.ap-changeSaveAndInvestGraph-graph3'));
+	var selecTabIndex 	= 'null';
+	var oSelectedClass 	= 'null';
+
+	if (oSelect1 == null ) {
+		var oTabSelect1 = '0';
+	} else {
+		var oTabSelect1 = phe.tabBox.getCurrentTabIndex(oSelect1);
+	}
+	if ((oTabSelect1 =='4' || oTabSelect1 =='5'|| oTabSelect1 =='0') && (oTabSelect3 =='4' || oTabSelect3 =='5' || oTabSelect3 =='0')) {
+		selecTabIndex = "3";
+		oSelectedClass=".ap-viewTab-jse2";
+	} else if((oTabSelect1 =='3' ||oTabSelect1 =='4' || oTabSelect1 =='0') && (oTabSelect3 =='3' ||oTabSelect3 =='4' || oTabSelect3 =='0'||oTabSelect3 =='null')) {
+		selecTabIndex = "5";
+		oSelectedClass=".ap-viewTab-news2";
+	} else if((oTabSelect1 =='5' ||oTabSelect1 =='3' || oTabSelect1 =='0') && (oTabSelect3 =='5' ||oTabSelect3 =='3' || oTabSelect3 =='0'||oTabSelect3 =='null')) {
+		selecTabIndex = "4";
+		oSelectedClass=".ap-viewTab-exchange2";
+	}
+	var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=Dashboards/SaveAndInvest/Graphs/saveinvestGraphLink';
+	var oDiv = bb.selector.queryAncestor(oButton, oClass);
+	var sPostData 	= 'mode=middleBlock';
+	var oParams 	= {};
+	oParams[gadgets.io.RequestParameters.METHOD] 	= gadgets.io.MethodType.POST;
+	oParams[gadgets.io.RequestParameters.POST_DATA] = sPostData;
+	absa.io.makeRequest(sUrl,function(oResponse){
+		if (!oResponse.errors.length) {
+			oDiv.innerHTML 	= oResponse.text;
+			var oTabbox 	= bb.selector.query(oDiv, '.ap-changeSaveAndInvestGraph-graph2');
+			phe.tabBox.selectTabByIndex(oTabbox, selecTabIndex);
+			var oSelectedTabHead 			= bb.selector.query(oDiv, oSelectedClass);
+			oSelectedTabHead.style.display 	= '';
+		} else {
+			absa.showIOErrorMessage(oDiv);
+		}
+	}, oParams);
+};
+
+absa.apps.viewSaveInvestPFM.onViewSecureMessage = function(oButton,oSource){
+	gadgets.pubsub.publish("goTo:dashboard/viewSecureMessage");
+};
+
+absa.apps.viewSaveInvestPFM.onApplyUnitTrust = function(oBtn){
+	gadgets.pubsub.publish("goTo:apply/applyForUnitTrust/applyForUnitTrust");
+};
+
+absa.apps.viewSaveInvestPFM.onSetupNettWorthCampainClick = function(object){
+	absa.apps.updateNettWorth.loadSetupOfAssetsAndLiabilitiesModal('NettWorthIntroductionGraph', object);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewSensNews = absa.apps.viewSensNews || {};
+
+absa.apps.viewSensNews.onModalLinkClick	= function(oInfoButton, position) {
+	var oTabBody	= bb.selector.queryAncestor(oInfoButton,'.ap-viewSensNews-parentModal');
+	var oModal		= bb.selector.query(oTabBody,'.ap-viewSensNews-modal' + position);
+	phe.modal.showModal(0.5, oModal, document.body, true);
+};
+
+absa.apps.viewSensNews.onRefreshButtonClick	= function(oButton) {
+	absa.lazyLoadNode(bb.selector.queryAncestor(oButton,'.ap-viewTab-news'), true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewExchangeRate = absa.apps.viewExchangeRate || {};
+
+absa.apps.viewExchangeRate.onRefreshButtonClick	= function(oButton) {
+	absa.lazyLoadNode(bb.selector.queryAncestor(oButton,'.ap-viewTab-exchange'), true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewJSEIndices = absa.apps.viewJSEIndices || {};
+
+absa.apps.viewJSEIndices.onRefreshButtonClick	= function(oButton) {
+	absa.lazyLoadNode(bb.selector.queryAncestor(oButton,'.ap-viewTab-jse'), true);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.performCalculation = absa.apps.performCalculation || {};
+
+absa.apps.performCalculation.onLumpSumInvestCalculator = function(oInput) {
+	var oTabBody				= bb.selector.queryAncestor(oInput, '.ap-lumSumInvestCalculator');
+	var oLumpSumInitDepSlider	= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep');
+	var oInvestTermSlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm');
+	var oInterestRateSilder		= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate');
+	var oLumpSumInitDep			= phe.slider.getValue(oLumpSumInitDepSlider);
+	var oInvestTerm				= phe.slider.getValue(oInvestTermSlider);
+	var oInterestRate			= phe.slider.getValue(oInterestRateSilder);
+	var oTotAmt					= bb.selector.query(oTabBody, '.ap-viewCalculator-totAmount');
+	var oIntRecieved			= bb.selector.query(oTabBody, '.ap-viewCalculator-interestReceived');
+	var iAmount					= oLumpSumInitDep;
+	var iMonths					= oInvestTerm;
+	var rate					= oInterestRate;
+	var Flag					= 0;
+	var formattedTotal			= 0;
+	var formattedRemInvest		= 0;
+
+	if ((!absa.form.validate.checkElement(oLumpSumInitDepSlider)) ||
+			(!absa.form.validate.checkElement(oInvestTermSlider)) ||
+			(!absa.form.validate.checkElement(oInterestRateSilder))) {
+		phe.textBox.setValue(oTotAmt, "0.00");
+		phe.textBox.setValue(oIntRecieved, "0.00");
+		return;
+	}
+
+	if (iAmount == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'));
+		Flag	= 1;
+		
+	} else if (parseInt(iAmount) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'));
+		Flag	= 1;
+		
+	} else if (parseInt(iAmount) > 1000000) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'), '1000000');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInitialDep'));
+		Flag	= 1;
+	}
+
+	if (iMonths == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'), '1');
+		iMonths		= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'));
+		Flag		= 1;
+		
+	} else if (parseInt(iMonths) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'));
+		Flag	= 1;
+		
+	} else if (parseInt(iMonths) > 120) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'), '120');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInvetmentTerm'));
+		Flag	= 1;
+	}
+
+	if (rate == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'));
+		Flag	= 1;
+		
+	} else if (parseFloat(rate) < 0) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'));
+		Flag	= 1;
+		
+	} else if (rate > 30) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'), '30.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumInterstRate'));
+		Flag	= 1;
+	}
+
+	if (iAmount > 0  && iMonths > 0 && rate > 0) {
+		if (Flag == 1 || Flag == 0) {
+			iAmount		= parseInt(iAmount);
+			iMonths		= parseInt(iMonths);
+			rate		= parseFloat(rate);
+			rate		= rate / 100;
+			var total	= parseFloat(iAmount * (Math.pow((1 + (rate / 12)), iMonths)));
+			var invest	= total - iAmount;
+
+			if (iMonths <= 1) {
+				var iTotal		= Math.round(total);
+				var rem			= total - iTotal;
+				rem				= Math.round(rem * 100);
+				formattedTotal = phe.amountField.reformatNumber("" + (iTotal + rem * 0.01), true);
+
+				var iInvest		= Math.round(invest);
+				var remInvest	= invest - iInvest;
+				remInvest		= Math.round(remInvest * 100);
+				formattedRemInvest = phe.amountField.reformatNumber("" + (iInvest + remInvest * 0.01), true);
+			} else {
+				var iTotal		= parseInt(total);
+				var rem			= total - iTotal;
+				rem				= Math.round(rem * 100);
+				formattedTotal = phe.amountField.reformatNumber("" + (iTotal + rem * 0.01), true);
+
+				var iInvest		= parseInt(invest);
+				var remInvest	= invest - iInvest;
+				remInvest		= Math.round(remInvest * 100);
+				formattedRemInvest = phe.amountField.reformatNumber("" + (iInvest + remInvest * 0.01), true);
+			}
+
+			if (total > 1000000000) {
+			} else {
+				var resultTotAmt		= formattedTotal;
+				var resultIntRecieved	= formattedRemInvest;
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totAmount'), resultTotAmt);
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interestReceived'), resultIntRecieved);
+			}
+		}
+	}else{
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totAmount'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interestReceived'), '0.00');
+	}
+};
+
+absa.apps.performCalculation.currencyFormat	= function(oTotal) {
+	var oMoney = Math.round(oTotal*100)/100;
+	var oAmount=oMoney.toString().split(".");
+	var oreminder = oAmount[1];
+	if (oreminder== null) {
+		oreminder= "00";
+	} else {
+		if(oreminder.length <2){
+			oreminder = oreminder +"0";
+		}
+	}
+	num			= "" + parseInt(oAmount[0]);
+	var temp1	= "";
+	var temp2	= "";
+	var count	= 0;
+	for ( var k = num.length - 1; k >= 0; k--) {
+		var oneChar	= num.charAt(k);
+		if (count == 3) {
+			temp1	+= ",";
+			temp1	+= oneChar;
+			count	= 1;
+			continue;
+		} else {
+			temp1 += oneChar;
+			count++;
+		}
+	}
+	for ( var k = temp1.length - 1; k >= 0; k--) {
+		var oneChar	= temp1.charAt(k);
+		temp2 += oneChar;
+	}
+
+	return temp2+"."+oreminder;
+};
+
+absa.apps.performCalculation.onMonthlySaveInvestCalculator = function(oInput) {
+	var oTabBody			= bb.selector.queryAncestor(oInput, '.ap-monthlySavingCalculator');
+	var oMonthPaySlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment');
+	var oInvestTermSlider	= bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm');
+	var oRateSlider			= bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate');
+	var oMonthPay			= phe.slider.getValue(oMonthPaySlider);
+	var oInvestTerm			= phe.slider.getValue(oInvestTermSlider);
+	var oRate				= phe.slider.getValue(oRateSlider);
+	var oTotAmtSaved		= bb.selector.query(oTabBody, '.ap-viewCalculator-totalamtSaved');
+	var oTotContribution	= bb.selector.query(oTabBody, '.ap-viewCalculator-totalContribution');
+	var oIntEarned			= bb.selector.query(oTabBody, '.ap-viewCalculator-interestEarned');
+	var iAmount				= oMonthPay;
+	var iMonths				= oInvestTerm;
+	var rate				= oRate;
+	var Flag				= 0;
+
+	if ((!absa.form.validate.checkElement(oMonthPaySlider)) ||
+			(!absa.form.validate.checkElement(oInvestTermSlider)) ||
+			(!absa.form.validate.checkElement(oRateSlider))) {
+		phe.textBox.setValue(oTotAmtSaved, "0.00");
+		phe.textBox.setValue(oTotContribution, "0.00");
+		phe.textBox.setValue(oIntEarned, "0.00");
+		return;
+	}
+
+	if (iAmount == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'));
+		Flag	= 1;
+		
+	} else if (parseInt(iAmount) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'));
+		Flag	= 1;
+		
+	} else if (parseInt(iAmount) > 50000) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'), '50000');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyPayment'));
+		Flag	= 1;
+	}
+	
+	if (iMonths == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'));
+		Flag	= 1;
+		
+	} else if (parseInt(iMonths) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'));
+		Flag	= 1;
+		
+	} else if (parseInt(iMonths) > 120) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'), '120');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-invetmentTerm'));
+		Flag	= 1;
+	}
+	
+	if (rate == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'));
+		Flag	= 1;
+		
+	} else if (parseFloat(rate) < 0) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'));
+		Flag	= 1;
+		
+	} else if (rate > 30) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'), '30.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interstRate'));
+		Flag	= 1;
+	}
+	
+	if (iAmount > 0  && iMonths > 0 && rate > 0) {
+	if (Flag == 1 || Flag == 0) {
+		iAmount		= parseInt(iAmount);
+		iMonths		= parseInt(iMonths);
+		rate		= parseFloat(rate);
+		rate		= rate / 100;
+		var total	= iAmount * ((((Math.pow((1 + (rate / 12)), iMonths)) - 1)) / (rate / 12));
+		var payment	= iAmount * iMonths;
+		var saved	= total - payment;
+		if (iMonths <= 1) {
+			var iTotal		= Math.round(total);
+			var rem			= total - iTotal;
+			rem				= Math.round(rem * 100);
+			var iPayment	= Math.round(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			var iSaved		= Math.round(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+		} else {
+			var iTotal		= parseInt(total);
+			var rem			= total - iTotal;
+			rem				= Math.round(rem * 100);
+			var iPayment	= parseInt(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			var iSaved		= parseInt(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+		}
+		if (isNaN(iTotal) || isNaN(rem) || isNaN(iPayment) || isNaN(remPayment)
+					|| isNaN(iSaved) || isNaN(remSaved)) {
+		} else {
+			if (rem < 10) {
+					rem	= new String(rem);
+					rem	= "0" + rem;
+				}
+				if (remPayment < 10) {
+					remPayment	= new String(remPayment);
+					remPayment	= "0" + remPayment;
+				}
+				if (remSaved < 10) {
+					remSaved	= new String(remSaved);
+					remSaved	= "0" + remSaved;
+				}
+				var resultTotAmtSaved		= absa.apps.performCalculation.currencyFormat(total);
+				var resultTotContribution	= absa.apps.performCalculation.currencyFormat(payment);
+				var resultIntEarned			= absa.apps.performCalculation.currencyFormat(saved);
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totalamtSaved'), resultTotAmtSaved);
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totalContribution'), resultTotContribution);
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interestEarned'), resultIntEarned);
+			}
+		}
+	}else{
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totalamtSaved'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-totalContribution'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-interestEarned'), '0.00');
+	}
+};
+
+absa.apps.performCalculation.onSavingGoalCalculator	= function(oInput) {
+	var oTabBody				= bb.selector.queryAncestor(oInput, '.ap-savingGoalCalculator');
+	var oSaveGoalReqAmtSlider	= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt');
+	var oSaveGoalTermSlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm');
+	var oInterestRateSlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate');
+	var oSaveGoalReqAmt			= phe.slider.getValue(oSaveGoalReqAmtSlider);
+	var oSaveGoalTerm			= phe.slider.getValue(oSaveGoalTermSlider);
+	var oInterestRate			= phe.slider.getValue(oInterestRateSlider);
+	var oMonthContribution		= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalMonthContribution');
+	var oTotContribution		= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTotContribution');
+	var oIntEarned				= bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntEarned');
+	var iAmount					= oSaveGoalReqAmt;
+	var iMonths					= oSaveGoalTerm;
+	var rate					= oInterestRate;
+	var Flag					= 0;
+
+	if ((!absa.form.validate.checkElement(oSaveGoalReqAmtSlider)) ||
+			(!absa.form.validate.checkElement(oSaveGoalTermSlider)) ||
+			(!absa.form.validate.checkElement(oInterestRateSlider))) {
+		phe.textBox.setValue(oMonthContribution, "0.00");
+		phe.textBox.setValue(oTotContribution, "0.00");
+		phe.textBox.setValue(oIntEarned, "0.00");
+		return;
+	}
+
+	if (iAmount == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'));
+		Flag	= 1;
+	} else if (parseInt(iAmount) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'));
+		Flag	= 1;
+	} else if (parseInt(iAmount) > 1000000) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'), '1000000');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalRequiredAmt'));
+		Flag	= 1;
+	}
+	
+	if (iMonths == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'));
+		Flag	= 1;
+	} else if (parseInt(iMonths) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'));
+		Flag	= 1;
+	} else if (parseInt(iMonths) > 120) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'), '120');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTerm'));
+		Flag	= 1;
+	}
+	
+	if (rate == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'));
+		Flag	= 1;
+	} else if (parseFloat(rate) < 0) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'));
+		Flag	= 1;
+	} else if (rate > 30) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'), '30.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntRate'));
+		Flag	= 1;
+	}
+	
+	if (iAmount > 0  && iMonths > 0 && rate > 0){
+	if (Flag == 1 || Flag == 0) {
+		iAmount		= parseInt(iAmount);
+		iMonths		= parseInt(iMonths);
+		rate		= parseFloat(rate);
+		rate		= rate / 100;
+		var Monthly	= iAmount / (((Math.pow((1 + (rate / 12)), iMonths) - 1)) / (rate / 12))
+		var payment	= Monthly * iMonths;
+		var saved	= iAmount - payment;
+		if (iMonths <= 1) {
+			var iMonthly	= Math.round(Monthly);
+			var rem			= Monthly - iMonthly;
+			rem				= Math.round(rem * 100);
+			var iPayment	= Math.round(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			var iSaved		= Math.round(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+		} else {
+			var iMonthly	= parseInt(Monthly);
+			var rem			= Monthly - iMonthly;
+			rem				= Math.round(rem * 100);
+			var iPayment	= parseInt(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			var iSaved		= parseInt(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+		}
+		if (isNaN(iMonthly) || isNaN(rem) || isNaN(iPayment)
+				|| isNaN(remPayment) || isNaN(iSaved) || isNaN(remSaved)) {
+		} else {
+			if (rem < 10) {
+				rem	= new String(rem);
+				rem = "0" + rem;
+			}
+			if (remPayment < 10) {
+				remPayment	= new String(remPayment);
+				remPayment	= "0" + remPayment;
+			}
+			if (remSaved < 10) {
+				remSaved	= new String(remSaved);
+				remSaved	= "0" + remSaved;
+			}
+			var resultMonthContribution	= absa.apps.performCalculation.currencyFormat(Monthly);
+			var resultTotContribution	= absa.apps.performCalculation.currencyFormat(payment)
+			var resultIntEarned			= absa.apps.performCalculation.currencyFormat(saved);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalMonthContribution'),	resultMonthContribution);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTotContribution'), resultTotContribution);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntEarned'), resultIntEarned);
+		}
+	}
+	}else{
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalMonthContribution'),	'0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalTotContribution'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-saveGoalIntEarned'), '0.00');
+	}
+};
+
+absa.apps.performCalculation.onRevolvingLoan = function(oInput) {
+	var oTabBody					= bb.selector.queryAncestor(oInput, '.ap-revolvingCalculator');
+	var oRevolvingLoanAmtSlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-revolvingLoanAmt');
+	var oRevolvingLoanAmt			= phe.slider.getValue(oRevolvingLoanAmtSlider);
+	var oMonthlyRepaymentTextBox	= bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyRepayment');
+	var iAmount						= oRevolvingLoanAmt;
+	var Flag						= 0;
+
+	if (!absa.form.validate.checkElement(oRevolvingLoanAmtSlider)) {
+		phe.textBox.setValue(oMonthlyRepaymentTextBox, "0.00");
+		return;
+	}
+
+	if (Flag == 1 || Flag == 0) {
+		iAmount			= parseInt(iAmount);
+		var Monthly		= iAmount / 40;
+		var iMonthly	= parseInt(Monthly);
+		var rem			= Monthly - iMonthly;
+		rem				= Math.round(rem * 100);
+		if (isNaN(iMonthly) || isNaN(rem)) {
+		} else {
+			if (rem < 10) {
+				rem	= new String(rem);
+				rem	= "0" + rem;
+			}
+			var result	= absa.apps.performCalculation.currencyFormat(Monthly);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-monthlyRepayment'), result);
+		}
+	}
+};
+
+absa.apps.performCalculation.onLumpSumExtCalc = function(oInput) {
+	var oTabBody					= bb.selector.queryAncestor(oInput, '.ap-lumSuminvestExtraContribution');
+	var oLumpSumExtInitDepSlider	= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep');
+	var oLumpSumExtMonthlySlider	= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly');
+	var oLumpSumExtTermSlider		= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm');
+	var oInterestRateSlider			= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate');
+	var oLumpSumExtInitDep			= phe.slider.getValue(oLumpSumExtInitDepSlider);
+	var oLumpSumExtMonthly			= phe.slider.getValue(oLumpSumExtMonthlySlider);
+	var oLumpSumExtTerm				= phe.slider.getValue(oLumpSumExtTermSlider);
+	var oInterestRate				= phe.slider.getValue(oInterestRateSlider);
+	var oTotAmtSaved				= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotSaved');
+	var oTotContribution			= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotContribution');
+	var oIntEarned					= bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumIntEarned');
+	var iAmount						= oLumpSumExtInitDep;
+	var ipayment					= oLumpSumExtMonthly;
+	var iMonths						= oLumpSumExtTerm;
+	var rate						= oInterestRate;
+	var Flag						= 0;
+	var formattedTotal				= 0;
+	var formattedTotalRemPayment	= 0;
+	var formattedRemSaved			= 0;
+
+	if ((!absa.form.validate.checkElement(oLumpSumExtInitDepSlider)) ||
+			(!absa.form.validate.checkElement(oLumpSumExtMonthlySlider)) ||
+			(!absa.form.validate.checkElement(oLumpSumExtTermSlider)) ||
+			(!absa.form.validate.checkElement(oInterestRateSlider))) {
+		phe.textBox.setValue(oTotAmtSaved, "0.00");
+		phe.textBox.setValue(oTotContribution, "0.00");
+		phe.textBox.setValue(oIntEarned, "0.00");
+		return;
+	}
+
+	if (iAmount == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'));
+		Flag	= 1;
+	} else if (parseInt(iAmount) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'), '1');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'));
+		Flag	= 1;
+	} else if (parseInt(iAmount) > 1000000) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'), '1000000');
+		iAmount	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtInitDep'));
+		Flag	= 1;
+	}
+	if (ipayment == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'), '1');
+		ipayment	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'));
+		Flag	= 1;
+	} else if (parseInt(ipayment) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'), '1');
+		ipayment	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'));
+		Flag	= 1;
+	} else if (parseInt(ipayment) > 50000) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'), '50000');
+		ipayment	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtMonthly'));
+		Flag	= 1;
+	}
+	if (iMonths == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'));
+		Flag	= 1;
+	} else if (parseInt(iMonths) < 1) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'), '1');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'));
+		Flag	= 1;
+	} else if (parseInt(iMonths) > 120) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'), '120');
+		iMonths	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtTerm'));
+		Flag	= 1;
+	}
+	if (rate == "") {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'));
+		Flag	= 1;
+	} else if (parseFloat(rate) < 0) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'), '0.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'));
+		Flag	= 1;
+	} else if (rate > 30) {
+		phe.slider.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'), '30.00');
+		rate	= phe.slider.getValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumExtIntRate'));
+		Flag	= 1;
+	}
+	if (iAmount > 0  && ipayment > 0 && iMonths > 0 && rate > 0){
+	if (Flag == 1 || Flag == 0) {
+		iAmount			= parseInt(iAmount);
+		ipayment		= parseInt(ipayment);
+		iMonths			= parseInt(iMonths);
+		rate			= parseFloat(rate);
+		rate			= rate / 100;
+		var total		= ipayment * (((Math.pow((1 + (rate / 12)), iMonths)) - 1) / (rate / 12)) + iAmount * (Math.pow((1 + (rate / 12)), iMonths));
+		var payment		= ipayment * iMonths;
+		var saved		= total - payment - iAmount;
+		if (iMonths <= 1) {
+			var iTotal	= Math.round(total);
+			var rem		= total - iTotal;
+			rem			= Math.round(rem * 100);
+			formattedTotal = phe.amountField.reformatNumber("" + (iTotal + rem * 0.01), true);
+
+			var iPayment	= Math.round(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			formattedRemPayment = phe.amountField.reformatNumber("" + (iPayment + remPayment * 0.01), true);
+
+			var iSaved		= Math.round(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+			formattedRemSaved = phe.amountField.reformatNumber("" + (iSaved + remSaved * 0.01), true);
+		} else {
+			var iTotal		= parseInt(total);
+			var rem			= total - iTotal;
+			rem				= Math.round(rem * 100);
+			formattedTotal = phe.amountField.reformatNumber("" + (iTotal + rem * 0.01), true);
+
+			var iPayment	= parseInt(payment);
+			var remPayment	= payment - iPayment;
+			remPayment		= Math.round(remPayment * 100);
+			formattedRemPayment = phe.amountField.reformatNumber("" + (iPayment + remPayment * 0.01), true);
+
+			var iSaved		= parseInt(saved);
+			var remSaved	= saved - iSaved;
+			remSaved		= Math.round(remSaved * 100);
+			formattedRemSaved = phe.amountField.reformatNumber("" + (iSaved + remSaved * 0.01), true);
+		}
+		if (isNaN(iTotal) || isNaN(rem) || isNaN(iPayment) || isNaN(remPayment)
+				|| isNaN(iSaved) || isNaN(remSaved)) {
+		} else {
+			var resultTotAmtSaved		= formattedTotal;
+			var resultTotContribution	= formattedRemPayment;
+			var resultIntEarned			= formattedRemSaved;
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotSaved'), resultTotAmtSaved);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotContribution'), resultTotContribution);
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumIntEarned'), resultIntEarned);
+		}
+	}
+	}else{
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotSaved'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumTotContribution'), '0.00');
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-lumpSumIntEarned'), '0.00');
+	}
+};
+// Retirement Calculator Start
+
+absa.apps.performCalculation.onRetirementCalcGDBCalc = function(oInput) {
+	var oTabBody							= bb.selector.queryAncestor(oInput, 'tbody');
+	var oRetireAnnualIncomeTextBox			= bb.selector.query(oTabBody, '.ap-viewCalculator-retireAnnualIncome');
+	var oRetirementAgeTextBox				= bb.selector.query(oTabBody, '.ap-viewCalculator-retirementAge');
+	var oCurrentSavingTextBox				= bb.selector.query(oTabBody, '.ap-viewCalculator-retireCurrentSaving');
+	var oRetireAnnualContributionTextBox	= bb.selector.query(oTabBody, '.ap-viewCalculator-retireAnnualContribution');
+	var oCurrentAgeTextBox					= bb.selector.query(oTabBody, '.ap-viewCalculator-currentAge');
+	var oRetireAnnualIncome					= phe.textBox.getValue(oRetireAnnualIncomeTextBox);
+	var oRetirementAge						= phe.textBox.getValue(oRetirementAgeTextBox);
+	var oCurrentSaving						= phe.textBox.getValue(oCurrentSavingTextBox);
+	var oRetireAnnualContribution			= phe.textBox.getValue(oRetireAnnualContributionTextBox);
+	var oCurrentAge							= phe.textBox.getValue(oCurrentAgeTextBox);
+	var oMonthlyContributionTextBox			= bb.selector.query(oTabBody, '.ap-viewCalculator-retireMonthlyContribution');
+	var oMonthlyContribution				= phe.textBox.getValue(oMonthlyContributionTextBox);
+
+	if((oRetireAnnualIncome != '') && (oRetirementAge != '') && (oCurrentSaving != '') && (oRetireAnnualContribution != '') && (oCurrentAge != '')){
+
+		if((oRetireAnnualIncome > 0 && oRetireAnnualIncome < 1000000000) &&
+			(oRetirementAge > 0 && oRetirementAge < 101) &&
+			(oCurrentSaving >= 0 && oCurrentSaving < 1000000000) &&
+			(oRetireAnnualContribution >= 0 && oRetireAnnualContribution <1000000000) &&
+			(oCurrentAge > 0 && oCurrentAge < 101)){
+
+			if ((!absa.form.validate.checkElement(oRetireAnnualIncomeTextBox)) ||
+					(!absa.form.validate.checkElement(oRetirementAgeTextBox)) ||
+					(!absa.form.validate.checkElement(oCurrentSavingTextBox)) ||
+					(!absa.form.validate.checkElement(oRetireAnnualContributionTextBox)) ||
+					(!absa.form.validate.checkElement(oCurrentAgeTextBox))) {
+				phe.textBox.setValue(oMonthlyContributionTextBox, "0.00");
+				return;
+			}
+
+			var mytest	= parseInt(oRetireAnnualIncome);
+			var v1, v2, v3, v4, v5, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11;
+			v1	= oRetireAnnualIncome;
+			v2	= oRetirementAge;
+			v3	= oCurrentSaving;
+			v4	= oRetireAnnualContribution;
+			v5	= oCurrentAge;
+			t1	= 35.4660744810745 + v2 * -0.317505495;
+			t2	= t1 * v1;
+			t3	= absa.apps.performCalculation.onRetirementCalcfV(0.03 / 12,
+					12 * (v2 - v5), 0, 100, 0);
+			t4	= -1 * t3 / 100;
+			t5	= v3 * t4;
+			t6	= absa.apps.performCalculation.onRetirementCalcfV(0.03 / 12,
+					12 * (v2 - v5), 100, 0, 1);
+			t7	= absa.apps.performCalculation.onRetirementCalcpmt(0.03 / 12,
+					12 * (v2 - v5), 0, 100);
+			t8	= -1 * t6 / 1200;
+			t9	= v4 * t8;
+			t10	= t7 * -0.12;
+			t11	= t2 - t5 - t9;
+
+			// As v1-v2 is age difference that is used as tenure in this calculation and
+			// it should not be zero. If it is zero or negative, calculated result will
+			// be INFINITY or NEGATIVE respectively.
+			if ((v2 - v5) > 0) {
+				var result	= absa.apps.performCalculation.onRetirementCalcAuMoney0(t11 * t10 / 12);
+				if (result > 0){
+					if(result > 999){
+						result = absa.apps.performCalculation.currencyFormat(result);
+					}
+				}else{
+					result= '0.00';
+				}
+				phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-retireMonthlyContribution'), result);
+			} else {
+				//This condition check is to avoid TOO MANY alerts messages popping up even before launching the calculator on RHS
+				// and to make displayed MonthlyContribution value sensible
+				if (v1 != 0 || (v2 - v5) < 0) {
+					phe.textBox.setValue(bb.selector.query(oTabBody,
+							'.ap-viewCalculator-retireMonthlyContribution'), '0.00');
+					if (!(absa.apps.performCalculation.onRetirementCalcValidateMessage(
+							v2 - v5, "Tenure"))) {
+						if (v2 < v5) {
+							} else {
+							}
+						phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-retireMonthlyContribution'), '0.00');
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}else {
+			phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-retireMonthlyContribution'), '0.00');
+		}
+	}else{
+		phe.textBox.setValue(bb.selector.query(oTabBody, '.ap-viewCalculator-retireMonthlyContribution'), '0.00');
+	}
+};
+
+absa.apps.performCalculation.onRetirementCalcValidateMessage = function(input, fieldname) {
+	if (!(absa.apps.performCalculation.onRetirementCalcValidNumber(input))) {
+		if (fieldname == 'MonthlyContribution') {
+			return false;
+		} else {
+			// alert("Please enter a valid number for the " + fieldname + " field. Please use decimal points as opposed to commas, and omit all spaces.");
+			return false;
+		}
+	}
+	if (fieldname == 'Tenure' && input <= 0) {
+
+		return false;
+	}
+	return true;
+};
+
+absa.apps.performCalculation.onRetirementCalcAuChar	= function(sg, i) {
+	var l, r, sg1, sg2;
+	l	= sg.length;
+	if ((i < 0) || (i >= l))
+		return ("");
+	r	= sg.substring(i, i + 1)
+	return (r);
+};
+
+absa.apps.performCalculation.onRetirementCalcAuInStr = function(sg, k) {
+	var i, l, sg1, sg2;
+	l	= sg.length;
+	for (i = 0; i < l; ++i) {
+		if (k == absa.apps.performCalculation.onRetirementCalcAuChar(sg, i))
+			return (i);
+	}
+	return (-1);
+};
+
+absa.apps.performCalculation.onRetirementCalcAuMoney = function(z) {
+	var m, r;
+	m	= 100 * z + 0.5;
+	r	= m % 1;
+	m -= r;
+	m /= 100;
+	return (m);
+};
+
+absa.apps.performCalculation.onRetirementCalcAuMoney0 = function(z) {
+	var j, l, zz, mm;
+	zz	= absa.apps.performCalculation.onRetirementCalcAuMoney(z);
+	// document.form.Calc0Money.value=zz; mm=document.form.Calc0Money.value;
+	mm	= zz;
+	l	= mm.length;
+	j	= absa.apps.performCalculation.onRetirementCalcAuInStr(mm, ".");
+	if (j > 0) {
+		if (j == (l - 2))
+			mm += "0";
+	}
+	return (mm);
+};
+
+absa.apps.performCalculation.onRetirementCalcValidNumber = function(input) {
+	if (input.length < 1)
+		return false;
+
+	sCheckStr	= "0123456789."; // allowed characters
+	iCnt		= 0; // counter for the number of "." characters
+	for (var iPos = 0; iPos < input.length; iPos++) {
+		if (sCheckStr.indexOf(input.charAt(iPos)) < 0)
+			return false;
+		else {
+			if (input.charAt(iPos) == ".") {
+				iCnt++;
+				if (iCnt > 1)
+					return false;
+			}
+		}
+	}
+	return true;
+};
+
+absa.apps.performCalculation.onRetirementCalcfV	= function(irate, nPeriod,
+		annualAmt, pv, xx) {
+	q	= -1
+			* (pv * Math.pow(1 + irate, nPeriod) + annualAmt
+					* (Math.pow(1 + irate, nPeriod) - 1) / irate);
+	if (xx == 0) {
+		return (q);
+	} else {
+		return (q * (1 + irate));
+	}
+};
+
+absa.apps.performCalculation.onRetirementCalcpmt = function(irate, nPeriod, pv,	fv) {
+	q	= Math.pow(1 + irate, nPeriod);
+	return (-((irate * (fv + q * pv)) / (-1 + q)));
+};
+
+// Retirement Calculator end
+// model window for information
+absa.apps.performCalculation.onModalInformation	= function(oInfoButton, oClass, nFAQ) {
+	var sVerticalTab	= "";
+	switch(nFAQ) {
+		case 1:
+			sVerticalTab	= "LumpSumInvest";
+			break;
+		case 2:
+			sVerticalTab	= "LumpSumInvestExtraContribution";
+			break;
+		case 3:
+			sVerticalTab	= "MonthlySavingInvest";
+			break;
+		case 4:
+			sVerticalTab	= "SavingGoal";
+			break;
+		case 5:
+			sVerticalTab	= "Retirement";
+			break;
+		case 6:
+			sVerticalTab	= "Revolving";
+			break;
+	}
+
+	var oTabBody	= bb.selector.queryAncestor(oInfoButton, oClass);
+	var oModal		= bb.selector.query(oTabBody, '.ap-information-modal' +sVerticalTab);
+
+//	var oTabBody	= bb.selector.queryAncestor(oInfoButton, oClass);
+//	var oModal	= bb.selector.query(oTabBody, '.ap-information-modal');
+
+	phe.modal.showModal(0.5, oModal, document.body, true);
+
+};
+
+absa.apps.performCalculation.onModaldisclaimer = function(oInfoButton, oClass) {
+	var oTabBody	= bb.selector.queryAncestor(oInfoButton, oClass);
+	var oModal		= bb.selector.query(oTabBody, '.ap-disclaimer-modal');
+	phe.modal.showModal(0.5, oModal, document.body, true);
+};
+
+absa.apps.performCalculation.goToSavingInvestment = function(oBtn){
+	gadgets.pubsub.publish("goTo:apply/createAccount/createAccount");
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.changeSaveAndInvestGraph = absa.apps.changeSaveAndInvestGraph || {};
+
+absa.apps.changeSaveAndInvestGraph.onSelectGraphSetPreference1 = function(oElem, sGraphName) {
+	var sId = bb.selector.queryAncestor(oElem, '.p-gadget-content[id]').id;
+	var oGadget = bb.document.getElementById(sId);
+	oGadget.setPreference('displayedGraphSelector1', sGraphName);
+	var oTab = bb.selector.queryAncestor(oElem,'.ap-changeSaveAndInvestGraph-graph1');
+	var oSelectedTabHead = bb.selector.query(oTab,'.ap-changeSaveAndInvestGraph-tabHeads1 ' + sGraphName);
+	//phe.tabBox.selectTab(oSelectedTabHead);
+	absa.apps.changeSaveAndInvestGraph.changeTab(oElem, sGraphName);
+};
+
+absa.apps.changeSaveAndInvestGraph.onSelectGraphSetPreference2 = function(oElem, sGraphName) {
+	var sId = bb.selector.queryAncestor(oElem, '.p-gadget-content[id]').id;
+	var oGadget = bb.document.getElementById(sId);
+	oGadget.setPreference('displayedGraphSelector2', sGraphName);
+	var oTab = bb.selector.queryAncestor(oElem,'.ap-changeSaveAndInvestGraph-graph2');
+	var oSelectedTabHead = bb.selector.query(oTab,'.ap-changeSaveAndInvestGraph-tabHeads2 ' + sGraphName);
+	//phe.tabBox.selectTab(oSelectedTabHead);
+	absa.apps.changeSaveAndInvestGraph.changeTab(oElem, sGraphName);
+};
+
+absa.apps.changeSaveAndInvestGraph.onSelectGraphSetPreference3 = function(oElem, sGraphName) {
+	var sId = bb.selector.queryAncestor(oElem, '.p-gadget-content[id]').id;
+	var oGadget = bb.document.getElementById(sId);
+	oGadget.setPreference('displayedGraphSelector3', sGraphName);
+	var oTab = bb.selector.queryAncestor(oElem,'.ap-changeSaveAndInvestGraph-graph3');
+	var oSelectedTabHead = bb.selector.query(oTab,'.ap-changeSaveAndInvestGraph-tabHeads3 ' + sGraphName);
+	//phe.tabBox.selectTab(oSelectedTabHead);
+	absa.apps.changeSaveAndInvestGraph.changeTab(oElem, sGraphName);
+};
+
+absa.apps.changeSaveAndInvestGraph.changeTab = function(oTr, oClass) {
+	var oTab = bb.selector.queryAncestor(oTr, '.ui-tabBox');
+	var oSelectedTabHead = bb.selector.query(oTab, '.ui-tabHeads ' + oClass);
+	var aTabHead = bb.selector.queryAll(oTab, '.ui-tabHeads li');
+	for (var i = 0; i < aTabHead.length; i++) {
+		if (!bb.html.hasClass(aTabHead[i], 'ap-viewTab-change')) {
+			aTabHead[i].style.display = 'none';
+		}
+	}
+	oSelectedTabHead.style.display = '';
+	phe.tabBox.selectTab(oSelectedTabHead);
+};
+
+absa.apps.changeSaveAndInvestGraph.onChartTypeClick = function (oGraph) {
+	var oTab1 = bb.selector.queryAncestor(oGraph,'.ap-changeSaveAndInvestGraph-graph1');
+	var oTab2 = bb.selector.queryAncestor(oGraph,'.ap-changeSaveAndInvestGraph-graph2');
+	var oTab3 = bb.selector.queryAncestor(oGraph,'.ap-changeSaveAndInvestGraph-graph3');
+	if (oTab1) {
+		absa.apps.changeSaveAndInvestGraph.setChartTypePreference(oGraph,'displayedChartType1', oTab1);
+	} else if (oTab2) {
+		absa.apps.changeSaveAndInvestGraph.setChartTypePreference(oGraph,'displayedChartType2', oTab2);
+	} else if (oTab3) {
+		absa.apps.changeSaveAndInvestGraph.setChartTypePreference(oGraph,'displayedChartType3', oTab3);
+	}
+};
+
+absa.apps.changeSaveAndInvestGraph.setChartTypePreference = function (oGraph, sDisplayedChartType, oTabBox) {
+	var oGadgetContent = bb.selector.queryAncestor(oGraph,'.p-gadget-content[id]');
+	if (oGadgetContent) {
+		var oGadget = bb.document.getElementById(oGadgetContent.id);
+		var oTabBody = phe.tabBox.getCurrentTabBody(oTabBox);
+		var sProxyUrl = phe.tabBody.getAttribute(oTabBody, 'data-proxyurl') + '&graphType=' + phe.graph.getAttribute(oGraph, 'chartType');
+		oGadget.setPreference(sDisplayedChartType, phe.graph.getAttribute(oGraph, 'chartType'));
+		phe.tabBody.setAttribute(oTabBody, 'proxyurl', sProxyUrl);
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.educationCentre = absa.apps.educationCentre || {};
+
+absa.apps.educationCentre.onModalLinkClick = function(oInfoButton, nVerticalTab, nFAQ ) {
+	var sVerticalTab = "";
+	switch (nVerticalTab) {
+		case 1:
+			sVerticalTab = "ShareTrading";
+			break;
+		case 2:
+			sVerticalTab = "UnitTrusts";
+			break;
+		case 3:
+			sVerticalTab = "AIMS";
+			break;		
+	}
+	var oTabBody = bb.selector.queryAncestor(oInfoButton, '.ap-educationCentre-parentModal' +sVerticalTab);
+		switch(nFAQ){
+		case 1:
+			var oModal = bb.selector.query(oTabBody, '.ap-educationCentre-about' +sVerticalTab);
+			break;
+		case 2:
+			var oModal = bb.selector.query(oTabBody, '.ap-educationCentre-FAQ' +sVerticalTab);
+			break;
+		case 3:
+			var oModal = bb.selector.query(oTabBody, '.ap-educationCentre-howToRegister' +sVerticalTab);
+			break;
+		case 4:
+			var oModal = bb.selector.query(oTabBody, '.ap-educationCentre-moreInfo' +sVerticalTab);
+			break;		
+	}
+	phe.modal.showModal(0.5, oModal, document.body , true);	
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewSharePriceWatch = absa.apps.viewSharePriceWatch || {};
+
+absa.apps.viewSharePriceWatch.onAddSharesButtonClicked = function(oButton, oClass, sParams) {
+	var oTabBoxVertical 		= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVertical')
+	var oTabBoxVerticalBody 	= bb.selector.queryAncestor(oButton, oClass);
+	var sUrl 					= 'proxy?pipe=genericEmptyResponse&xslFile=sharePriceWatch/addSharesToPriceWatch';
+	
+	if (sParams != '') {
+		sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=sharePriceWatch/addSharesToPriceWatch' + sParams;
+	}
+	var sDefaultProxyUrl = phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') ? phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') : '';
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+	
+	phe.tabBoxVertical.reloadTab(oTabBoxVertical);
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sDefaultProxyUrl);	
+};
+
+absa.apps.viewSharePriceWatch.onRemoveSharesButtonClicked = function(oButton, oClass) {
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oButton, oClass);
+	var sUrl 				= 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=viewSharePriceWatchForRemove';
+	var sDefaultProxyUrl 	= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') ? phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') : '';
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+	absa.lazyLoadNode(oTabBoxVerticalBody, true);
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sDefaultProxyUrl);
+};
+
+absa.apps.viewSharePriceWatch.onRefresh = function(oButton, oClass) {
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oButton, oClass);
+	absa.lazyLoadNode(oTabBoxVerticalBody, true);
+};
+
+absa.apps.viewSharePriceWatch.onAddSharesButtonClickedWarning= function(oButton) {	
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-warningDiv');	
+	var message = bb.selector.query(oTabBoxVerticalBody,'.ap-viewSharePriceWatch-warning');
+	var oTable = bb.selector.query(oTabBoxVerticalBody,'.ap-viewSharePriceWatch-table');
+	
+	phe.message.setAttribute(message,"class","ap-viewSharePriceWatch-warning");
+	phe.table.setAttribute(oTable,"class","ap-viewSharePriceWatch-table ap-common-hide");
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.addShareToPriceWatch = absa.apps.addShareToPriceWatch || {};
+
+absa.apps.addShareToPriceWatch.handleResponseForShareSearch = function(oForm,oResponse, oClass) {
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oForm, oClass);
+	oTabBoxVerticalBody.innerHTML = oResponse.text;
+	absa.form.attachHandlers(oTabBoxVerticalBody);
+};
+
+absa.apps.addShareToPriceWatch.selectDeselectAll = function(oCheckboxSelectAll) {
+	var oDiv 						= bb.selector.queryAncestor(oCheckboxSelectAll, '.ap-addShareToPriceWatch-shareSearchResult');
+	var aCheckboxSearchResultRecord = bb.selector.queryAll(oDiv, '.ap-addShareToPriceWatch-shareSearchResultRecord');
+
+	for (var i = 0; i < aCheckboxSearchResultRecord.length; i++) {
+		phe.checkBox.setAttribute(aCheckboxSearchResultRecord[i], 'checked', phe.checkBox.isChecked(oCheckboxSelectAll).toString());
+	}
+};
+
+absa.apps.addShareToPriceWatch.addShares = function(oButton, iPriceWatchScripCount, sParams) {
+	var oTabBoxVertical			= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVertical');
+	var oTabBoxVerticalBody 	= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVerticalBody');
+	var aCheckBoxSearchResult	= bb.selector.queryAll(oTabBoxVerticalBody, '.ap-addShareToPriceWatch-shareSearchResultRecord');
+	var aTableBodyRow 			= bb.selector.queryAll(oTabBoxVerticalBody, '.ap-addShareToPriceWatch-shareSearchResultRow');
+	var bNoRecordSelected 		= true;
+	var sPostData 				= '';
+	var iSelectedRecordsCount 	= 0;
+	var sUrl					= '';
+	var sDefaultProxyUrl 		= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') ? phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') : '';
+
+	for (var i = 0; i < aCheckBoxSearchResult.length; i++) {
+		if (phe.checkBox.isChecked(aCheckBoxSearchResult[i])) {
+			iSelectedRecordsCount++;
+			bNoRecordSelected = false;
+
+			var oTableBodyCellJSECode 			= bb.selector.query(aTableBodyRow[i], '.ap-addShareToPriceWatch-jseCode');
+			var oTableBodyCellShareName 		= bb.selector.query(aTableBodyRow[i], '.ap-addShareToPriceWatch-shareName');
+			var oTableBodyCellCompanyName 		= bb.selector.query(aTableBodyRow[i], '.ap-addShareToPriceWatch-companyName');
+			var sJseCode 						= phe.tableBodyCell.getAttribute(oTableBodyCellJSECode, 'data-jseCode');
+			var sShareName 						= phe.tableBodyCell.getAttribute(oTableBodyCellShareName, 'data-shareName');
+			var sCompanyName 					= phe.tableBodyCell.getAttribute(oTableBodyCellCompanyName, 'data-companyName');
+			//PS: So we do not add more than 20 shares for this user ever
+			if ((iSelectedRecordsCount + iPriceWatchScripCount) <= 20) {
+				sPostData 							= sPostData + 'jseCode=' + sJseCode + '&shareName'
+													+ sJseCode + '=' + sShareName + '&companyName' + sJseCode
+													+ '=' + sCompanyName + '&';
+			}
+		}
+	}
+
+	if (bNoRecordSelected) {
+		sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=sharePriceWatch/addSharesToPriceWatch&mode=noRecordsSelected&' + sParams;
+
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+		phe.tabBoxVertical.reloadTab(oTabBoxVertical);
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody ,'proxyurl' , sDefaultProxyUrl);
+		return;
+
+	//PS: Above check will stop adding once 20 is reached so no more need for this
+	} else if ((iSelectedRecordsCount + iPriceWatchScripCount) > 20) {
+		var oForm = bb.selector.queryAncestor(oButton, '.ui-form');
+		var oErrorForm = bb.selector.query(oTabBoxVerticalBody, '.ap-addShareToPriceWatch-errorForm');
+		phe.form.hide(oForm);
+		phe.form.show(oErrorForm);
+		
+	} else {
+		sUrl = 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=addSharesToPriceWatch&sharesCount='+(iPriceWatchScripCount + iSelectedRecordsCount)+'&' + sPostData + sParams;
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+		phe.tabBoxVertical.reloadTab(oTabBoxVertical);
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody ,'proxyurl' , sDefaultProxyUrl+'&sharesCount='+(iPriceWatchScripCount + iSelectedRecordsCount));
+	}
+};
+
+absa.apps.addShareToPriceWatch.onNoOrCancelButtonClicked = function(oButton, sClassTabBoxVerticalBody) {
+	var oTabBoxVerticalBody	= bb.selector.queryAncestor(oButton, sClassTabBoxVerticalBody);
+	var sUrl				= 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=viewSharePriceWatch';
+	var sDefaultProxyUrl	= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl');
+
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+	absa.lazyLoadNode(oTabBoxVerticalBody, true);
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sDefaultProxyUrl);
+};
+
+absa.apps.addShareToPriceWatch.onTryAddingAgain = function(oButton, sClassTabBoxVerticalBody, sPostData) {
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oButton, sClassTabBoxVerticalBody);
+	var sUrl 				= 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=searchSharesForAddingToPriceWatch&mode=searchResult';
+
+	var sDefaultProxyUrl 	= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl');
+	sUrl	+= '&' + sPostData;
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+	absa.lazyLoadNode(oTabBoxVerticalBody, true);
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody ,'proxyurl' , sDefaultProxyUrl);
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.removeShareFromPriceWatch = absa.apps.removeShareFromPriceWatch || {};
+
+absa.apps.removeShareFromPriceWatch.onSubmitForm = function(oButton, oClass) {
+	var oForm = bb.selector.queryAncestor(oButton, oClass);
+	absa.form.validateAndSubmit(oForm);
+};
+
+absa.apps.removeShareFromPriceWatch.handleResponseForShareSearch = function(oForm, oResponse, oClass) {
+	var oTabBoxVerticalBody 		= bb.selector.queryAncestor(oForm, oClass);
+	oTabBoxVerticalBody.innerHTML 	= oResponse.text;	
+	absa.form.attachHandlers(oTabBoxVerticalBody);
+};
+
+absa.apps.removeShareFromPriceWatch.onResetButtonClicked = function(oButton, sTypeOfSearch, sSearchCriteria) {
+	var oTabBoxVerticalBody 	= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVerticalBody');
+	var oCheckBoxSelectAll 		= bb.selector.query(oTabBoxVerticalBody, '.ap-removeShareFromPriceWatch-shareSearchResultSelectAll');
+	var aCheckBoxSearchResult 	= bb.selector.queryAll(oTabBoxVerticalBody, '.ap-removeShareFromPriceWatch-shareSearchResultRecord');
+	
+	phe.checkBox.setAttribute(oCheckBoxSelectAll, 'checked', 'false');
+	for (var i = 0; i < aCheckBoxSearchResult.length; i++) {
+		phe.checkBox.setAttribute(aCheckBoxSearchResult[i], 'checked', 'false');
+	}
+};
+
+absa.apps.removeShareFromPriceWatch.onNoOrCancelButtonClicked = function(oButton, oClassTabBoxVerticalBody) {
+	var oTabBoxVerticalBody = bb.selector.queryAncestor(oButton, oClassTabBoxVerticalBody);
+	var sUrl 				= 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=viewSharePriceWatch';
+	var sDefaultProxyUrl	= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') ? phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') : '';
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+	absa.lazyLoadNode(oTabBoxVerticalBody, true);
+	phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sDefaultProxyUrl);
+};
+
+absa.apps.removeShareFromPriceWatch.selectDeselectAll = function(oCheckboxSelectAll) {
+	var oDiv = bb.selector.queryAncestor(oCheckboxSelectAll, '.ap-removeShareFromPriceWatch-shareSearchResult');
+	var aCheckboxSearchResultRecord = bb.selector.queryAll(oDiv, '.ap-removeShareFromPriceWatch-shareSearchResultRecord');
+	for (var i = 0; i < aCheckboxSearchResultRecord.length; i++) {
+		phe.checkBox.setAttribute(aCheckboxSearchResultRecord[i], 'checked',
+		phe.checkBox.isChecked(oCheckboxSelectAll).toString());
+	}
+};
+
+absa.apps.removeShareFromPriceWatch.removeShares = function(oButton) {
+	var oTabBoxVertical				= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVertical');
+	var oTabBoxVerticalBody 		= bb.selector.queryAncestor(oButton, '.ap-viewSharePriceWatch-tabBoxVerticalBody');
+	var aCheckBoxSearchResult 		= bb.selector.queryAll(oTabBoxVerticalBody, '.ap-removeShareFromPriceWatch-shareSearchResultRecord');
+	var aTableBodyRow 				= bb.selector.queryAll(oTabBoxVerticalBody, '.ap-removeShareFromPriceWatch-shareSearchResultRow');
+	var oTableBodyCellJSECode 		= null;
+	var oTableBodyCellShareName 	= null;
+	var oTableBodyCellCompanyName 	= null;
+	var bNoRecordSelected			= true;
+	var sPostData 					= '&';
+	var sJseCode 					= null;
+	var sShareName 					= null;
+	var sCompanyName 				= null;
+	var iSelectedRecordsCount 		= 0;
+	var sDefaultProxyUrl 			= phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') ? phe.tabBoxVerticalBody.getAttribute(oTabBoxVerticalBody, 'proxyurl') : '';
+	var sUrl						= '';
+	for (var i = 0; i < aCheckBoxSearchResult.length; i++) {
+		if (phe.checkBox.isChecked(aCheckBoxSearchResult[i])) {
+			iSelectedRecordsCount++;
+			if (bNoRecordSelected) {
+				bNoRecordSelected = false;
+			}
+			oTableBodyCellJSECode 		= bb.selector.query(aTableBodyRow[i], '.ap-removeShareFromPriceWatch-jseCode');
+			oTableBodyCellShareName 	= bb.selector.query(aTableBodyRow[i], '.ap-removeShareFromPriceWatch-shareName');
+			oTableBodyCellCompanyName 	= bb.selector.query(aTableBodyRow[i], '.ap-removeShareFromPriceWatch-companyName');
+			sJseCode 					= phe.tableBodyCell.getAttribute(oTableBodyCellJSECode, 'data-jseCode');
+			sShareName 					= phe.tableBodyCell.getAttribute(oTableBodyCellShareName, 'data-shareName');
+			sCompanyName 				= phe.tableBodyCell.getAttribute(oTableBodyCellCompanyName, 'data-companyName');
+			sPostData 					= sPostData + 'jseCode=' + sJseCode + '&shareName'
+										+ sJseCode + '=' + sShareName + '&companyName' + sJseCode
+										+ '=' + sCompanyName + '&';
+		}
+	}
+	if (bNoRecordSelected) {
+		sUrl	= 'proxy?pipe=genericEmptyResponse&xslFile=sharePriceWatch/removeSharesFromPriceWatch&mode=noRecordsSelected';
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+		phe.tabBoxVertical.reloadTab(oTabBoxVertical);
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody ,'proxyurl' , sDefaultProxyUrl);
+		return;
+		
+	} else {
+		sUrl 	= 'proxy?pipe=genericWebservice&ws=SaveInvestWebService&action=removeShareFromPriceWatch' + sPostData;
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody, 'proxyurl', sUrl);
+		phe.loadingMessage.showLoadingMessage(oTabBoxVerticalBody);
+		absa.io.makeRequest(sUrl, function(oResponse){
+			phe.loadingMessage.hideLoadingMessage(oTabBoxVerticalBody);
+			if (!oResponse.errors.length) {
+				var oXHTML 	= bb.html.createElementFromString(oResponse.text);
+				var oResult	= bb.selector.query(oXHTML, '.ap-removeSharesResult');
+				if (oResult.innerHTML == 'REMOVE_SUCCESSFUL') {
+					absa.apps.removeShareFromPriceWatch.onNoOrCancelButtonClicked(oButton, '.ap-viewSharePriceWatch-tabBoxVerticalBody');
+				} else {
+					oTabBoxVerticalBody.innerHTML = oXHTML.innerHTML; 
+				}
+			} else {
+				absa.showIOErrorMessage(oTabBoxVerticalBody);		
+			}
+		});
+		phe.tabBoxVerticalBody.setAttribute(oTabBoxVerticalBody ,'proxyurl' , sDefaultProxyUrl);	
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewUnitTrustPriceWatch = absa.apps.viewUnitTrustPriceWatch || {};
+
+absa.apps.viewUnitTrustPriceWatch.onClickOfFundFactSheet = function(sTermsAndCond) {
+	//PS: Do NOT encodeURI anymore 
+	//var sTermsAndCondPath	= "assets" + encodeURI(sTermsAndCond);
+	var sTermsAndCondPath	= "assets" + sTermsAndCond;
+	window.open(sTermsAndCondPath, "TermsAndConditions", "top=0,left=0, width=850, height=600,resizable");
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.viewQuoteStatus = absa.apps.viewQuoteStatus || {};
+
+
+absa.apps.viewQuoteStatus.refresh = function(oBtn){
+	var oRoot = bb.selector.queryAncestor(oBtn,".ap-viewQuotes-container");
+	var oTbl = bb.selector.query(oRoot,".ap-quotes-table");
+	phe.table.reload(oTbl);
+};
+
+
+absa.apps.viewQuoteStatus.onViewQuoteStatusButtonClick = function(oButton,sType) {
+	if (sType == null) sType = 'generic';	// PS: can be either  generic  or  overdraft
+	
+	var oTableBodyCell = bb.selector.queryAncestor(oButton, '.ap-viewQuoteStatus-tableBodyCell');
+	var oQuoteNumber = bb.selector.query(oTableBodyCell, '.ap-viewQuoteStatus-quoteNumber');
+	var sQuoteNumber = phe.hiddenField.getValue(oQuoteNumber);
+	var sHeading = absa.locale['Apply/General/Label/CompleteApplication'];
+	var sProxyUrl = '';
+	if (sType == 'generic') {
+		sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=loansAndAssetFinance/loans/applyForPersonalLoan/applyForPersonalLoan-step4&quoteNumber=' + sQuoteNumber + '&fromDashBoard=true';
+	} else {
+		// PS: this is for Overdraft
+		sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=loansAndAssetFinance/loans/completeLater&mode=viewQuoteStatus&quoteRefNumber=' + sQuoteNumber + '&fromDashBoard=true';
+	}
+	
+	absa.modal.loadModal(sProxyUrl, sHeading, function() {
+		//var oModal = arguments[0];
+	});
+};
+
+
+//for resume Product name saved as ClassicLife,FuneralPlan,MotorVehicle,HomeOwners,HouseHoldContent in DB
+absa.apps.viewQuoteStatus.onResumeApplicationButtonClick = function(oButton,sProductType,sReferenceNo) {
+	if ((sProductType == "ClassicLife")||(sProductType == "FuneralPlan")||(sProductType == "AffinityPlan")||(sProductType == "UltimateProtector")
+			||(sProductType == "LawForYou")) {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: sProductType,referenceNumber: sReferenceNo});
+	} else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: sProductType,referenceNumber: sReferenceNo});
+	}
+};
+
+
+absa.apps.viewQuoteStatus.onDoneButtonClickForInstantLoan = function(oButton) {
+	phe.modal.hideModal();
+	var oTable = bb.selector.query(window.document, '.ap-quotes-table');
+	phe.table.reload(oTable);
+};
+
+
+absa.apps.viewQuoteStatus.onResumeRAApplicationButtonClick = function(oButton,sStatus,sTransType,sReferenceNumber,sProductType) {
+	if(sStatus == "PEND") {
+		switch (sProductType) {
+			case "RAProduct" :
+				//Container, gadget, tab
+				gadgets.pubsub.publish("goTo:apply/taxFreeInvestmentAccount/aimsRR",{productType: sProductType,status: sStatus,referenceNumber: sReferenceNumber});
+				break;
+			case "INVACC" :
+				gadgets.pubsub.publish("goTo:apply/taxFreeInvestmentAccount/aimsRR",{productType: sProductType,status: sStatus,referenceNumber: sReferenceNumber});
+				break;
+			case "TAXFREESAV" :
+				gadgets.pubsub.publish("goTo:apply/taxFreeInvestmentAccount/aimsRR",{productType: sProductType,status: sStatus,referenceNumber: sReferenceNumber});
+				break;
+		}
+	} else {
+		switch (sProductType) {
+			case "RAProduct" :
+				if(sTransType == 'RAADD') {
+					var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=abcap/AdditionForRA/additionForRAViewStatus&referenceNumber='+sReferenceNumber;
+					var sHeading = absa.locale['ABCAP/ApplyRA/Tab/RetirementAnnuity'];
+					absa.modal.loadModal(sUrl, sHeading);
+				} else {
+					var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=abcap/ApplyNewBusinessForRA/newBusinessForRAViewStatus&referenceNumber='+sReferenceNumber+'&status='+sStatus;
+					var sHeading = absa.locale['ABCAP/ApplyRA/Tab/RetirementAnnuity'];
+					absa.modal.loadModal(sUrl, sHeading);
+				}
+			break;
+		case "INVACC" :
+			if (sTransType == 'NEWBUSINESS') {
+				var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=abcap/NewBusinessINV/newBusinessInvCompletedApp&referenceNumber='+sReferenceNumber;
+				var sHeading = absa.locale['ABCAP/ApplyRA/Tab/DiscretionaryInvestments'];
+				absa.modal.loadModal(sUrl, sHeading);
+			} else {
+				var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=abcap/AdditionForInvAcc/additionForINVViewStatus&referenceNumber='+sReferenceNumber;
+				var sHeading = absa.locale['ABCAP/ApplyRA/Tab/DiscretionaryInvestments'];
+				absa.modal.loadModal(sUrl, sHeading);
+			}
+			break;
+		case "TAXFREESAV" :
+			if (sTransType == 'RRNEWBUSINESS') {
+				var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=aims/apply/newBusinessRRCompletedApp&referenceNumber='+sReferenceNumber;
+				var sHeading = absa.locale['ABCAP/ApplyRR/Tab/RetirementReform'];
+				absa.modal.loadModal(sUrl, sHeading);
+			} else if(sTransType == 'RRADDITION') {
+				var sUrl = 'proxy?pipe=genericEmptyResponse&xslFile=aims/addition/additionForAimsViewStatus&referenceNumber='+sReferenceNumber;
+				var sHeading = absa.locale['ABCAP/ApplyRR/Tab/RetirementReform'];
+				absa.modal.loadModal(sUrl, sHeading);
+			}
+			break;
+		}
+	}
+};
+
+/* 
+ * For setting refernce no and product type in hidden field
+ * This approach is used so that we do not have to change the existing createAccount Js function signature.
+ * */
+absa.apps.viewQuoteStatus.setHiddenField = function(oButton,sProductType,sReferenceNo,sStatus,sTransType) {
+	var prodType = bb.selector.queryAll(window.document, '.ap-viewQuote-hiddenField');
+	// sVal contains  product type and reference no. This will distinguish every entry making class name unique
+	var setVal = sProductType + "-" +sReferenceNo + "-" +sStatus+ "-" +sTransType;
+	for (var i=0; i < prodType.length; i++) {
+		phe.Element.prototype.setAttribute(prodType[i], "value", setVal);
+	}
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.lifestagemap = absa.apps.lifestagemap || {};
+
+absa.apps.lifestagemap.onImageMapClick = function(oMap, oType, oLifeEvent) {
+	var oGrid = bb.selector.queryAncestor(oMap, '.ap-lifestage-mainDiv');
+	if (oGrid) {
+		var lfetGridTextHead = bb.selector.query(oGrid, '.ap-lifestage-lfetGridTextHead');
+		var lfetGridText = bb.selector.query(oGrid, '.ap-lifestage-lfetGridText');
+		var hilightLabel = bb.selector.query(oGrid, '.ap-lifestage-Hilighticon');
+		var lifeventext = bb.selector.query(oGrid, '.ap-lifestage-lifeventext');
+		var headButton =  bb.selector.query(oGrid, '.ap-lifestage-headButton');
+		var hilightBar =  bb.selector.query(oGrid, '.ap-lifestage-hilightBar');
+		var oLifeEvenLabel =  bb.selector.query(oGrid, '.ap-lifestage-lifeEvenLabel');
+		var oLifestageHeading = bb.selector.query(oGrid, '.ap-lifestage-heading');
+		var oHeadDescription = bb.selector.query(oGrid, '.ap-lifestage-headDescription');
+		var olabelC1 = bb.selector.query(oGrid, '.ap-lifestage-labelC1');
+		var oLabelC2 = bb.selector.query(oGrid, '.ap-lifestage-labelC2');
+		var oLabelB1 = bb.selector.query(oGrid, '.ap-lifestage-labelB1');
+		var oLabelB2 = bb.selector.query(oGrid, '.ap-lifestage-labelB2');
+		var oLabelA1 = bb.selector.query(oGrid, '.ap-lifestage-labelA1');
+		var oLabelA2 = bb.selector.query(oGrid, '.ap-lifestage-labelA2');
+		var oDoneit  = bb.selector.query(oGrid, '.ap-lifestage-doneitButton');
+		var oThinkingAbout  = bb.selector.query(oGrid, '.ap-lifestage-thinkingAboutButton');
+		var oNotYet  = bb.selector.query(oGrid, '.ap-lifestage-notYetButton');
+		var oStatusLabel =  bb.selector.query(oGrid, '.ap-lifestage-statusLabel');
+		var olifeEventIdentifier =  bb.selector.query(oGrid, '.ap-lifestage-lifeEventIdentifier');
+		phe.hiddenField.setValue(olifeEventIdentifier, oLifeEvent);
+		phe.message.setAttribute(oStatusLabel,'class','ap-lifestage-statusLabel ap-common-hide');
+		//setting all the buttons to gray
+		phe.button.setAttribute(oDoneit, "class", "ap-button-doneitGray ap-lifestage-doneitButton");
+		phe.button.setAttribute(oThinkingAbout, "class", "ap-button-thinkingAboutGray ap-lifestage-thinkingAboutButton");
+		phe.button.setAttribute(oNotYet, "class", "ap-button-notYetGray ap-lifestage-notYetButton");
+		phe.button.setAttribute(oDoneit, "onclick", "absa.apps.lifestagemap.onStatusButtonClick(this,'Doneit')");
+		phe.inputReadOnlyText.setAttribute(oHeadDescription,'style','height: 141px');//Added height to fix the issue in IE8 browser
+		phe.inputReadOnlyText.setAttribute(oLabelA2,'style','height: 60px');
+		//for changing the labels for heading and its description 
+		switch (oType) {
+			case "Independence" :
+				var sIndependence = absa.locale['AFS/LifeStageMap/Label/Independence'];
+				phe.inputReadOnlyText.setValue(oLifestageHeading,sIndependence);
+				var sIndependenceDesc = absa.locale['AFS/LifeStageMap/Label/IndependenceDescription'];
+				var oIndependenceDescription = bb.selector.query(oGrid, '.ap-lifestage-IndependenceDescription');
+				phe.inputReadOnlyText.setValue(oHeadDescription,phe.inputReadOnlyText.getValue(oIndependenceDescription));
+				break;
+			case "Responsibility" :
+				var sResponsibility = absa.locale['AFS/LifeStageMap/Label/Responsibility'];
+				phe.inputReadOnlyText.setValue(oLifestageHeading,sResponsibility);
+				var oResponsibilityDescription = bb.selector.query(oGrid, '.ap-lifestage-ResponsibilityDescription');
+				var sResponsibilityDesc = absa.locale['AFS/LifeStageMap/Label/ResponsibilityDescription'];
+				phe.inputReadOnlyText.setValue(oHeadDescription,phe.inputReadOnlyText.getValue(oResponsibilityDescription));//Added the hidden value to fix the issue in IE8 browser
+				break;
+			case "Growth" :
+				var sGrowth = absa.locale['AFS/LifeStageMap/Label/Growth'];
+				phe.inputReadOnlyText.setValue(oLifestageHeading,sGrowth);
+				var sGrowthDesc = absa.locale['AFS/LifeStageMap/Label/GrowthDescription'];
+				phe.inputReadOnlyText.setValue(oHeadDescription,sGrowthDesc);
+				break;
+			case "Realisation" :
+				var sRealisation = absa.locale['AFS/LifeStageMap/Label/Realisation'];
+				phe.inputReadOnlyText.setValue(oLifestageHeading,sRealisation);
+				var oRealisationDescription = bb.selector.query(oGrid, '.ap-lifestage-RealisationDescription');
+				phe.inputReadOnlyText.setValue(oHeadDescription,phe.inputReadOnlyText.getValue(oRealisationDescription));
+				break;
+			case "RealityCheck" :
+				var sRealityCheck = absa.locale['AFS/LifeStageMap/Label/RealityCheck'];
+				phe.inputReadOnlyText.setValue(oLifestageHeading,sRealityCheck);
+				var sRealityCheckDesc = absa.locale['AFS/LifeStageMap/Label/RealityCheckDescription'];
+				phe.inputReadOnlyText.setValue(oHeadDescription,sRealityCheckDesc);
+				break;
+		}
+		
+		switch (oLifeEvent) {
+			case "TertiaryStudy" :
+				phe.button.setAttribute(headButton,"class", "ap-icon-tertiaryStudy ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-tertiaryStudy ap-lifestage-tertiaryStudybar ap-lifestage-hilightBar");
+				var sTertiaryStudy = absa.locale['AFS/LifeStageMap/Label/TertiaryStudy'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/TertiaryStudyFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sTertiaryStudy);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "BuyCar"	:
+				phe.button.setAttribute(headButton,"class", "ap-icon-buyCar ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-buyCar ap-lifestage-buyCarbar ap-lifestage-hilightBar");
+				var sBuyCar = absa.locale['AFS/LifeStageMap/Label/BuyCar'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/BuyCarFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sBuyCar);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "BuyHouse"	:
+				phe.button.setAttribute(headButton,"class", "ap-icon-buyHouse ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-buyHouse ap-lifestage-buyHousebar ap-lifestage-hilightBar");
+				var sBuyHouse = absa.locale['AFS/LifeStageMap/Label/BuyHouse'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/BuyHouseFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sBuyHouse);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				phe.inputReadOnlyText.setAttribute(oLabelB2,'style','height: 60px');
+				break;
+			case "Getmarried"	:
+				phe.button.setAttribute(headButton,"class", "ap-icon-getMarried ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-getMarried ap-lifestage-getMarriedbar ap-lifestage-hilightBar");
+				var sGetMarried = absa.locale['AFS/LifeStageMap/Label/GetMarried'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/GetMarriedFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sGetMarried);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "SchoolChildren"	:
+				phe.button.setAttribute(headButton,"class", "ap-icon-schoolChildren ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-schoolChildren ap-lifestage-schoolChildrenbar ap-lifestage-hilightBar");
+				var sSchoolChildren = absa.locale['AFS/LifeStageMap/Label/SchoolChildren'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/SchoolChildrenFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sSchoolChildren);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "Growafamily"	:
+				phe.button.setAttribute(headButton,"class", "ap-icon-growFamily ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-growFamily ap-lifestage-growFamilybar ap-lifestage-hilightBar");
+				var sGrowaFamily = absa.locale['AFS/LifeStageMap/Label/GrowaFamily'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/GrowaFamilyFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sGrowaFamily);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "Startabusiness"	:
+				phe.button.setAttribute(headButton,"class","ap-icon-startBusiness ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-startBusiness ap-lifestage-startBusinessbar ap-lifestage-hilightBar");
+				var sStartaBusiness = absa.locale['AFS/LifeStageMap/Label/StartaBusiness'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/StartaBusinessFactsC2'];
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sStartaBusiness);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "TravelOrRetire"	:
+				phe.button.setAttribute(headButton,"class","ap-icon-retire ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-retire ap-lifestage-retirebar ap-lifestage-hilightBar");
+				var sTravelOrRetire = absa.locale['AFS/LifeStageMap/Label/TravelOrRetire'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/TravelOrRetireFactsC2'];
+				phe.button.setAttribute(oDoneit, "onclick", "''");
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sTravelOrRetire);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+			case "FinishingWell"	:
+				phe.button.setAttribute(headButton,"class","ap-icon-finishingWell ap-lifestage-headButton");
+				phe.label.setAttribute(hilightBar,"class","ap-bar-finishingWell ap-lifestage-finishingwellbar ap-lifestage-hilightBar");
+				var sFinishingWell = absa.locale['AFS/LifeStageMap/Label/FinishingWell'];
+				var sFactsA1 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsA1'];
+				var sFactsA2 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsA2'];
+				var sFactsB1 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsB1'];
+				var sFactsB2 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsB2'];
+				var sFactsC1 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsC1'];
+				var sFactsC2 = absa.locale['AFS/LifeStageMap/Label/FinishingWellFactsC2'];
+				phe.button.setAttribute(oDoneit, "onclick", "''");
+				phe.inputReadOnlyText.setValue(oLifeEvenLabel,sFinishingWell);
+				phe.inputReadOnlyText.setValue(olabelC1,sFactsC1);
+				phe.inputReadOnlyText.setValue(oLabelC2,sFactsC2);
+				phe.inputReadOnlyText.setValue(oLabelB1,sFactsB1);
+				phe.inputReadOnlyText.setValue(oLabelB2,sFactsB2);
+				phe.inputReadOnlyText.setValue(oLabelA1,sFactsA1);
+				phe.inputReadOnlyText.setValue(oLabelA2,sFactsA2);
+				break;
+		}
+	}
+};
+
+absa.apps.lifestagemap.onSolutionsForYou = function(oButton){
+	var ohighlevelGadget = bb.selector.queryAncestor(oButton, '.ap-insurancedashboard-content');
+	var sId	= bb.selector.queryAncestor(oButton, '.p-gadget-content[id]').id;
+	var oGadget = bb.document.getElementById(sId);
+	var tabBoxSelectedIndex = oGadget.viewGate.controller.getProperty("tabBoxSelectedIndex");
+	var oTab=bb.selector.query(ohighlevelGadget, '.ap-tabHead-solutionsforyou');
+	oGadget.viewGate.controller.setProperty("tabBoxSelectedIndex", tabBoxSelectedIndex+1);
+	phe.tabBox.selectTab(oTab);
+};
+
+absa.apps.lifestagemap.onStatusButtonClick = function(oButton,sStatusOption,sLifeEvent){
+	var oGrid = bb.selector.queryAncestor(oButton, '.ap-lifejourney-eventgrid');
+	if (oGrid) {
+		var oDoneitButton = bb.selector.query(oGrid, '.ap-lifestage-doneitButton');
+		var oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifestage-thinkingAboutButton');
+		var oNotyetButton = bb.selector.query(oGrid, '.ap-lifestage-notYetButton');
+		
+		switch (sLifeEvent) {
+			case "TertiaryStudy" :
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutStudy');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitStudy');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetStudy');
+				break;
+			case "BuyCar"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutCar');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitCar');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetCar');
+				break;
+			case "BuyHouse"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutHouse');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitHouse');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetHouse');
+				break;
+			case "Getmarried"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutMarriage');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitMarriage');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetMarriage');
+				break;
+			case "SchoolChildren"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutChild');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitChild');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetChild');
+				break;
+			case "Growafamily"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutFamily');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitFamily');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetFamily');
+				break;
+			case "Startabusiness"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutBusiness');
+				oDoneitButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-DoneitBusiness');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetBusiness');
+				break;
+			case "TravelOrRetire"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutRetire');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetRetire');
+				break;
+			case "FinishingWell"	:
+				oThinkingaboutButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-thinkingaboutFinish');
+				oNotyetButton = bb.selector.query(oGrid, '.ap-lifejourneybutton-NotyetFinish');
+				break;
+		}
+		
+		switch (sStatusOption) {
+			case "Doneit" :
+				bb.html.replaceClass(oButton, 'ap-button-small-grey', 'ap-button-small-red');
+				bb.html.replaceClass(oThinkingaboutButton, 'ap-button-small-red', 'ap-button-small-grey');
+				bb.html.replaceClass(oNotyetButton, 'ap-button-small-red', 'ap-button-small-grey');
+				break;
+			case "Thinkingabout" :
+				bb.html.replaceClass(oButton, 'ap-button-small-grey', 'ap-button-small-red');
+				if (oDoneitButton != null) {
+					bb.html.replaceClass(oDoneitButton, 'ap-button-small-red', 'ap-button-small-grey');
+				}	
+				bb.html.replaceClass(oNotyetButton, 'ap-button-small-red', 'ap-button-small-grey');				
+				break;
+			case "Notyet" :
+				bb.html.replaceClass(oButton, 'ap-button-small-grey', 'ap-button-small-red');
+				if (oDoneitButton != null) {
+					bb.html.replaceClass(oDoneitButton, 'ap-button-small-red', 'ap-button-small-grey');
+				}
+				bb.html.replaceClass(oThinkingaboutButton, 'ap-button-small-red', 'ap-button-small-grey');
+				break;
+		}
+	
+		/*var oLifeEvenLabel =  bb.selector.query(oGrid, '.ap-lifestage-lifeEvenLabel');
+		var sLifeEventName =phe.inputReadOnlyText.getValue(oLifeEvenLabel);
+		var oStatusLabel =  bb.selector.query(oGrid, '.ap-lifestage-statusLabel');
+		var lifeID=phe.hiddenField.getValue(bb.selector.query(oGrid, '.ap-lifestage-lifeEventIdentifier'));
+		phe.loadingMessage.showLoadingMessage(oStatusLabel);*/
+		var sSelectedOption = sStatusOption;
+		var sPostData = '&';
+		sPostData = sPostData + 'lifeEventName=' + sLifeEvent + '&selectedOption=' + sSelectedOption + '&lifeID=' + sLifeEvent;
+		sUrl = 'proxy?pipe=genericWebservice&ws=ManagePolicyDetailsWebService&action=saveLifeStageDetails' + sPostData;
+		absa.io.makeRequest(sUrl, function(oResponse){
+			if (!oResponse.errors.length) {
+				var oXHTML 	= bb.html.createElementFromString(oResponse.text);
+				var oResult	= bb.selector.query(oXHTML, '.ap-saveLifeStageResult');
+				
+				if(oResult.innerHTML == 'success'){
+					var sSuccess = absa.locale['Common/General/Label/Successful'];
+					/*phe.message.setMessage(oStatusLabel,sSuccess);
+					phe.message.setAttribute(oStatusLabel,'msgType','success');
+					phe.message.setAttribute(oStatusLabel,'class','ap-lifestage-statusLabel ui-message-success');*/
+					
+				} else {
+					var sFailure = absa.locale['Common/General/Host/Error/H0549'];
+					/*phe.message.setMessage(oStatusLabel,sFailure);
+					phe.message.setAttribute(oStatusLabel,'msgType','error');
+					phe.message.setAttribute(oStatusLabel,'class','ap-lifestage-statusLabel ui-message-error');*/
+				}
+			}
+		});
+	}	
+};
+
+absa.apps.lifestagemap.onRotateImages = function(oButton){
+    var rotatingImages = new Array();
+    var graphMainDiv= bb.selector.queryAncestor(oButton, '.ap-insuranceportfolio-graphMainDiv');
+    rotatingImages[0]=phe.hiddenField.getValue(bb.selector.query(graphMainDiv, '.ap-lifestage-image1'));
+    rotatingImages[1]=phe.hiddenField.getValue(bb.selector.query(graphMainDiv, '.ap-lifestage-image2'));
+    rotatingImages[2]=phe.hiddenField.getValue(bb.selector.query(graphMainDiv, '.ap-lifestage-image3'));
+    imageCount = rotatingImages.length;
+    firstTime = true;
+    duration = "20";
+   
+    if (bb.selector.query(graphMainDiv, '.ap-graphs-rotatingimage').complete || firstTime) {
+        if (firstTime) {
+            thisImage = Math.floor((Math.random() * imageCount));
+            firstTime = false;
+        } else {
+            thisImage++;
+            if (thisImage == imageCount) {
+                thisImage = 0;
+            }
+        }
+        bb.selector.query(graphMainDiv, '.ap-graphs-rotatingimage').src = rotatingImages[thisImage];
+        //setTimeout(absa.apps.lifestagemap.onRotateImages(oButton), duration * 1000);
+        var interval = setInterval(absa.apps.lifestagemap.onRotateImages,1000); 
+    }
+};
+
+absa.apps.lifestagemap.onCallMeback = function(productName){
+	absa.modal.loadModal('proxy?pipe=genericWebservice&ws=ManagePolicyDetailsWebService&action=getPortfolioInfo&queryType='+ productName,'Call Me Back', '', '');
+};
+
+absa.apps.lifestagemap.onThisIsMe = function(oButton,sLifeEvent){
+	var ohighlevelGadget = bb.selector.queryAncestor(oButton, '.ap-insurancedashboard-content');
+	var oTab = bb.selector.query(ohighlevelGadget, '.ap-tabHead-yourlifejourney');
+	var oTabBody = bb.selector.query(ohighlevelGadget, '.ap-tabBody-yourlifejourney');
+	var sOldProxyUrl = phe.tabBox.getAttribute(oTabBody, 'proxyurl');
+	var sProxyUrl = 'proxy?pipe=genericEmptyResponse&xslFile=Dashboards/Insurance/lifejourneyEvents&lifeEventName='+sLifeEvent;
+	phe.tabBox.setAttribute(oTabBody,'proxyurl',sProxyUrl);
+	phe.tabBox.selectTab(oTab);
+	phe.tabBox.setAttribute(oTabBody,'proxyurl',sOldProxyUrl);
+	/*var oTab = bb.selector.query(ohighlevelGadget, '.ap-tabHead-Growth');
+	phe.tabBox.selectTab(oTab);*/
+};
+var absa = window.absa || {};
+absa.apps = absa.apps || {};
+absa.apps.solutionsForYou = absa.apps.solutionsForYou || {};
+
+
+absa.apps.solutionsForYou.onApplyHomeOwners = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'HomeOwners';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "HO"});
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforHouseHold = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'HouseholdContents';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance",{productType: "HH"});
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforMotorVechicle = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'MotorVehicle';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance",{productType: "MO"});
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforClassicLife = function() {
+	gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "Life"});
+};
+
+
+absa.apps.solutionsForYou.onApplyforFuneral = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'FuneralPlan';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "Funeral"});
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforFreeCover = function() {
+	gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "Free"});
+};
+
+
+absa.apps.solutionsForYou.onApplyforInsurance = function() {
+	gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "StandardLifeApply"});
+};
+
+
+absa.apps.solutionsForYou.onApplyforLifeCover = function() {
+	gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: "StandardLifeApply"});
+};
+
+
+absa.apps.solutionsForYou.onApplyforUltimateProtector = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'UL';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType : "UL"})
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforLawForYou = function() {
+	if (absa.RBAINDICATORFORINSURANCE == 'true') {
+		var sProductName	= 'LawForYou';
+
+		absa.apps.solutionsForYou.doRiskProfiling(sProductName);
+	}
+	else {
+		gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType : "LawForYou"});
+	}
+};
+
+
+absa.apps.solutionsForYou.onApplyforShortTermCover = function() {
+	gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance",{productType: "StandardShortTermApply"});
+};
+
+
+absa.apps.solutionsForYou.onApplyforRewards = function() {
+	gadgets.pubsub.publish("goTo:apply/applyForRewards/applyForRewards");
+};
+
+
+absa.apps.solutionsForYou.onCallMeAdvisor = function() {
+	absa.modal.loadModal('proxy?pipe=genericWebservice&ws=ManagePolicyDetailsWebService&action=getPortfolioInfo&queryType=other','Call Me Back', '', '');
+};
+
+
+absa.apps.solutionsForYou.doRiskProfiling	= function(sProductName) {
+	var sUrlLinkCasa	= 'proxy?pipe=genericWebservice&ws=RbaWebService&action=getCasaStatus';
+	var sModalTitle		= '';
+
+	if (sProductName == 'UL') {
+		sModalTitle	= absa.locale['AFS/InsuranceLandingPage/Label/UltimateProtector'];
+	}
+	else if (sProductName == 'FuneralPlan') {
+		sModalTitle	= absa.locale['AFS/InsuranceLandingPage/Label/AbsaOnlineFuneralCover'];
+	}
+	else if (sProductName == 'LawForYou') {
+		sModalTitle	= absa.locale['AFS/LawForYou/Label/AbsaOnlineLawForYou'];
+	}
+	else if (sProductName == 'MotorVehicle') {
+		sModalTitle	= absa.locale['AFS/InsuranceLandingPage/Label/AbsaOnlineCar'];
+	}
+	else if (sProductName == 'HouseholdContents') {
+		sModalTitle		= absa.locale['AFS/InsuranceLandingPage/Label/AbsaOnlineHomeContents'];
+	}
+	else if (sProductName == 'HomeOwners') {
+		sModalTitle		= absa.locale['AFS/InsuranceLandingPage/Label/AbsaOnlineHomeBuilding'];
+	}
+
+	absa.io.makeRequest(sUrlLinkCasa, function(oResponse) {
+		if (!oResponse.errors.length) {
+			var oResult					= bb.html.createElementFromString(oResponse.text);
+			var casaReference			= phe.common.getAttribute(oResult, 'casaReference');
+			var casaApproved			= phe.common.getAttribute(oResult, 'casaApproved');
+			var oErrorMessage			= bb.selector.query(oResult,'.ap-rba-errorMessage');
+			absa.index.oCasaAlertModal	= bb.selector.query(window.document, '.modalCasaAlertWarning');
+			var oErrorModalBody			= bb.selector.query(absa.index.oCasaAlertModal, '.modalCasaAlertBody');
+
+			if(oErrorModalBody.hasChildNodes()) {
+				oErrorModalBody.removeChild(oErrorModalBody.childNodes[0]);
+			}
+
+			if (casaApproved == 'true') {
+				absa.modal.loadModal('proxy?pipe=genericEmptyResponse&xslFile=Apply/checkRBAForInsuranceProducts&fromBanners=true&productType=' + sProductName + '&casaRef='+ casaReference, sModalTitle);
+			}
+			else if (oErrorMessage) {
+				phe.message.setMessage(oErrorMessage, absa.locale['AFS/General/Label/RBAErrorMessageLife']);
+
+				oErrorModalBody.appendChild(oErrorMessage, oErrorModalBody);
+
+				phe.modal.showModal(0.5, absa.index.oCasaAlertModal, document.body, true);
+			}
+		}
+	});
+};
+
+
+absa.apps.solutionsForYou.onContinueRBACheck	= function(oButton, sProductType) {
+	var oForm 				= bb.selector.queryAncestor(oButton,'.ap-checkRBAForInsurance-form');
+	var oSourceOfFund 		= bb.selector.query(oForm, '.ap-insurance-sourceOfFunds');
+	var oCasaRef			= bb.selector.query(oForm ,'.ap-checkRBAForInsurance-casaRef');
+	var oEmpStatus			= bb.selector.query(oForm, '.ap-managePersonalDetails-occupationStatus');
+	var oOccupation			= bb.selector.query(oForm, '.ap-managePersonalDetails-occupation');
+	var sourceOfFundValue	= phe.select.getValue(oSourceOfFund);
+	var sCasaRef			= phe.hiddenField.getValue(oCasaRef);
+	var sEmpStatus			= phe.select.getValue(oEmpStatus);
+
+	if(sEmpStatus == '04' || sEmpStatus == '05'|| sEmpStatus == '06' || sEmpStatus == '07' || sEmpStatus == '10'){
+		var sOccupation	= 0; 
+	}
+	else {
+		var sOccupation	= phe.select.getValue(oOccupation); 
+	}
+
+	var sUrlLink	= 'proxy?pipe=genericWebservice&ws=RbaWebService&action=getRiskProfile&fromOffers=true'
+						+ '&productType=' + sProductType
+						+ '&casaRef=' + sCasaRef
+						+ '&empStatus=' + sEmpStatus
+						+ '&occupation=' + sOccupation
+						+ '&sourceOfFund=' + sourceOfFundValue;
+
+	absa.io.makeRequest(sUrlLink, function(oResponse) {
+		if (!oResponse.errors.length) {
+			var oResult			= bb.html.createElementFromString(oResponse.text);
+			var riskRating		= phe.common.getAttribute(oResult, 'riskRating');
+			var riskAcceptable	= phe.common.getAttribute(oResult, 'riskAcceptable');
+
+			if ((riskRating == 'L' || riskRating == 'M'|| riskRating == 'VL')&& riskAcceptable == 'true') {
+				phe.modal.hideModal();
+
+				if (sProductType == 'UL') {
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType : 'UL', sourceOfFund: sourceOfFundValue})
+				}
+				else if (sProductType == 'FuneralPlan') {
+
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: 'Funeral', sourceOfFund: sourceOfFundValue});
+				}
+				else if (sProductType == 'LawForYou') {
+
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: 'LawForYou', sourceOfFund: sourceOfFundValue});
+				}
+				else if (sProductType == 'MotorVehicle') {
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: 'MO'});
+				}
+				else if (sProductType == 'HomeOwners') {
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: 'HO'});
+				}
+				else if (sProductType == 'HouseholdContents') {
+					gadgets.pubsub.publish("goTo:apply/insurance/applyInsurance", {productType: 'HH'});
+				}
+			}
+			else {
+				phe.common.show(bb.selector.query(oForm, '.ap-checkRBAForInsurance-errorMessage'));
+			}
+		}
+		else {
+			absa.showIOErrorMessage(oForm);
+		}
+	});
+};

